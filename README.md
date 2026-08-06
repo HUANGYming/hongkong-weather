@@ -64,6 +64,16 @@ Later runs: refreshes recent/current-year data and upserts by date.
 
 Each run is recorded in `hko_ingest_runs`.
 
+## Realtime Daily Data
+
+The HKO `D1` daily climate endpoint is monthly, so it may not include today or the latest completed month. For daily realtime/provisional data, use:
+
+```text
+QWEN_REALTIME_DAILY_GUIDE.md
+```
+
+That guide adds a realtime Postgres layer using HKO provisional regional weather APIs, then combines official monthly rows with provisional current rows.
+
 ## Daily macOS Schedule
 
 The launchd template is:

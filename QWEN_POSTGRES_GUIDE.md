@@ -13,6 +13,8 @@ Requirements:
 - Update behavior: run daily and upsert by `date`.
 - Keep raw value and completeness flag for every weather element.
 
+Important: the `D1` daily climate endpoint is monthly historical data, not realtime daily data. If the system must show today's or yesterday's data before HKO publishes monthly climate files, also implement `QWEN_REALTIME_DAILY_GUIDE.md`.
+
 ## Data Source
 
 Use the HKO public CSV endpoint:
@@ -348,4 +350,3 @@ The final server command should be:
 ```bash
 DATABASE_URL="postgresql://user:password@host:5432/dbname" python3 update_hko_postgres.py
 ```
-
