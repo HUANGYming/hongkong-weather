@@ -1,6 +1,6 @@
 # 本地 Airflow 学习环境
 
-这个分支提供一套本地学习用 Airflow。它不会修改生产 Airflow，也不会把 Airflow 加进项目 `pyproject.toml`。
+这个分支提供一套本地学习用 Airflow 3.2.1。它不会修改生产 Airflow，也不会把 Airflow 加进项目 `pyproject.toml`。
 
 ## 启动
 

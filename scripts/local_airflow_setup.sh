@@ -16,8 +16,7 @@ fi
 if [[ ! -x "$HKO_AIRFLOW_VENV/bin/airflow" ]]; then
   uv venv --python "$PYTHON_BIN" "$HKO_AIRFLOW_VENV"
   uv pip install --python "$HKO_AIRFLOW_VENV/bin/python" \
-    "apache-airflow==2.10.5" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.11.txt"
+    "apache-airflow==3.2.1"
 fi
 
 if ! docker ps --format '{{.Names}}' | grep -qx "$HKO_POSTGRES_CONTAINER"; then
@@ -42,16 +41,7 @@ mkdir -p "$HKO_AIRFLOW_HOME/dags" "$HKO_AIRFLOW_HOME/logs"
 ln -sf "$HKO_PROJECT_DIR/dags/hko_weather_airflow.py" "$HKO_AIRFLOW_HOME/dags/hko_weather_airflow.py"
 
 airflow db migrate
-
-if ! airflow users list | awk '{print $2}' | grep -qx admin; then
-  airflow users create \
-    --username admin \
-    --firstname Local \
-    --lastname Admin \
-    --role Admin \
-    --email admin@example.com \
-    --password admin
-fi
+airflow dags reserialize
 
 airflow dags list
 

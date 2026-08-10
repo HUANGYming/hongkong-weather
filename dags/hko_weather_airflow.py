@@ -18,8 +18,16 @@ from datetime import timedelta
 from pathlib import Path
 
 import pendulum
-from airflow import DAG
-from airflow.operators.bash import BashOperator
+
+try:
+    from airflow.sdk import DAG
+except ImportError:  # Airflow 2.x compatibility.
+    from airflow import DAG
+
+try:
+    from airflow.providers.standard.operators.bash import BashOperator
+except ImportError:  # Airflow 2.x compatibility.
+    from airflow.operators.bash import BashOperator
 
 
 DAG_DIR = Path(__file__).resolve().parent
