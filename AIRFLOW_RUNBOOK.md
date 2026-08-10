@@ -10,13 +10,12 @@ The DAG file is:
 dags/hko_weather_airflow.py
 ```
 
-It defines five DAGs:
+It defines four DAGs:
 
 ```text
 hko_realtime_current            Every 10 minutes, current provisional observations
-hko_realtime_archive_backfill   Daily 01:25 HK time, recent historical archive replay
+hko_daily_backfill_cleanup      Daily 01:25 HK time, archive replay then raw cleanup
 hko_official_d1                 Daily 08:15 HK time, official D1 checker
-hko_realtime_raw_cleanup        Daily 02:40 HK time, raw table retention cleanup
 hko_initial_backfill            Manual bootstrap DAG
 ```
 
@@ -104,9 +103,17 @@ After it succeeds, enable the scheduled DAGs:
 
 ```text
 hko_realtime_current
-hko_realtime_archive_backfill
+hko_daily_backfill_cleanup
 hko_official_d1
-hko_realtime_raw_cleanup
+```
+
+If you deployed an older version, pause or delete the retired DAG records:
+
+```bash
+airflow dags pause hko_realtime_archive_backfill || true
+airflow dags pause hko_realtime_raw_cleanup || true
+airflow dags delete hko_realtime_archive_backfill --yes || true
+airflow dags delete hko_realtime_raw_cleanup --yes || true
 ```
 
 ## Validate

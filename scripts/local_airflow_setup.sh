@@ -42,6 +42,9 @@ ln -sf "$HKO_PROJECT_DIR/dags/hko_weather_airflow.py" "$HKO_AIRFLOW_HOME/dags/hk
 
 airflow db migrate
 airflow dags reserialize
+for retired_dag in hko_realtime_archive_backfill hko_realtime_raw_cleanup; do
+  airflow dags delete "$retired_dag" --yes >/dev/null 2>&1 || true
+done
 
 airflow dags list
 

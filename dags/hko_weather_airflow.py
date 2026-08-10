@@ -71,16 +71,16 @@ with DAG(
 
 
 with DAG(
-    dag_id="hko_realtime_archive_backfill",
-    description="Replay DATA.GOV.HK historical archive snapshots for recent HKO provisional daily rows.",
+    dag_id="hko_daily_backfill_cleanup",
+    description="Replay recent HKO archive snapshots, then prune old realtime raw observations.",
     default_args=DEFAULT_ARGS,
     start_date=pendulum.datetime(2026, 8, 10, tz=HK_TZ),
     schedule="25 1 * * *",
     catchup=False,
     max_active_runs=1,
-    tags=["hko", "weather", "archive", "backfill"],
-) as archive_backfill_dag:
-    BashOperator(
+    tags=["hko", "weather", "daily", "backfill", "cleanup"],
+) as daily_backfill_cleanup_dag:
+    backfill_recent_archive = BashOperator(
         task_id="backfill_recent_archive",
         bash_command=uv_command(
             "update_hko_realtime_postgres.py "
@@ -89,6 +89,16 @@ with DAG(
         ),
         execution_timeout=timedelta(hours=1),
     )
+
+    cleanup_realtime_raw = BashOperator(
+        task_id="cleanup_realtime_raw",
+        bash_command=uv_command(
+            'cleanup_hko_realtime_raw.py --retention-days "${HKO_RAW_RETENTION_DAYS:-60}"'
+        ),
+        execution_timeout=timedelta(minutes=10),
+    )
+
+    backfill_recent_archive >> cleanup_realtime_raw
 
 
 with DAG(
@@ -105,25 +115,6 @@ with DAG(
         task_id="update_official_d1",
         bash_command=uv_command("update_hko_postgres.py"),
         execution_timeout=timedelta(minutes=30),
-    )
-
-
-with DAG(
-    dag_id="hko_realtime_raw_cleanup",
-    description="Prune old HKO realtime raw observations to keep PostgreSQL size bounded.",
-    default_args=DEFAULT_ARGS,
-    start_date=pendulum.datetime(2026, 8, 10, tz=HK_TZ),
-    schedule="40 2 * * *",
-    catchup=False,
-    max_active_runs=1,
-    tags=["hko", "weather", "cleanup"],
-) as cleanup_dag:
-    BashOperator(
-        task_id="cleanup_realtime_raw",
-        bash_command=uv_command(
-            'cleanup_hko_realtime_raw.py --retention-days "${HKO_RAW_RETENTION_DAYS:-60}"'
-        ),
-        execution_timeout=timedelta(minutes=10),
     )
 
 

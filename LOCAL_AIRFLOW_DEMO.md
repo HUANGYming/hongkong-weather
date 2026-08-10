@@ -7,7 +7,11 @@
 ```bash
 scripts/local_airflow_setup.sh
 scripts/local_airflow_webserver.sh
+scripts/local_airflow_dag_processor.sh
+scripts/local_airflow_scheduler.sh
 ```
+
+这四条命令需要分别放在不同 terminal 里运行。只看 UI 时可以只开 `webserver`；如果要在 UI 里手动 trigger DAG，必须同时开 `dag_processor` 和 `scheduler`。
 
 打开：
 
@@ -25,9 +29,8 @@ admin / admin
 
 1. 进入 DAG 首页，看这几个 DAG：
    - `hko_realtime_current`
-   - `hko_realtime_archive_backfill`
+   - `hko_daily_backfill_cleanup`
    - `hko_official_d1`
-   - `hko_realtime_raw_cleanup`
    - `hko_initial_backfill`
 2. 点进 `hko_realtime_current`，看 `Grid`、`Graph`、`Code`。
 3. 本地稳定跑单个任务：
