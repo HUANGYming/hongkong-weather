@@ -99,6 +99,13 @@ LIMIT 20;
 15 8 * * * cd /path/to/hongkong-weather && uv run python update_hko_postgres.py >> logs/hko_official.log 2>&1
 ```
 
+Airflow alternative:
+
+```text
+AIRFLOW_RUNBOOK.md
+dags/hko_weather_airflow.py
+```
+
 ## 8. Main Objects
 
 ```text

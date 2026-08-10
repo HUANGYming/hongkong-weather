@@ -110,6 +110,17 @@ Production cron example:
 40 2 * * * cd /path/to/hongkong-weather && uv run python cleanup_hko_realtime_raw.py --retention-days 60 >> logs/hko_cleanup.log 2>&1
 ```
 
+## Airflow
+
+Airflow is supported for production orchestration. See:
+
+```text
+AIRFLOW_RUNBOOK.md
+dags/hko_weather_airflow.py
+```
+
+The Airflow deployment includes separate DAGs for current realtime updates, historical archive replay, official D1 refresh, raw cleanup, and manual bootstrap.
+
 ## Tests
 
 Offline parser tests:
