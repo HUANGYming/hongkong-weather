@@ -34,19 +34,37 @@ Recommended environment variables:
 
 ```bash
 export DATABASE_URL="postgresql://user:password@host:5432/dbname"
-export HKO_PROJECT_DIR="/opt/airflow/hongkong-weather"
+export HKO_PROJECT_DIR="/opt/llm/hongkong-weather"
 export HKO_ARCHIVE_LOOKBACK_DAYS=14
 export HKO_RAW_RETENTION_DAYS=60
 ```
 
 `HKO_PROJECT_DIR` is optional if the `dags/` folder lives inside this repository. Set it explicitly in production.
 
+## Quick Deploy For `/opt/llm/airflow/dags`
+
+```bash
+cd /opt/llm
+git clone https://github.com/HUANGYming/hongkong-weather.git
+cd /opt/llm/hongkong-weather
+uv sync --locked
+
+ln -s /opt/llm/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
+```
+
+If the symlink already exists:
+
+```bash
+rm /opt/llm/airflow/dags/hko_weather_airflow.py
+ln -s /opt/llm/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
+```
+
 ## Install Project Dependencies
 
 On each Airflow worker:
 
 ```bash
-cd /opt/airflow/hongkong-weather
+cd /opt/llm/hongkong-weather
 uv sync --locked
 ```
 
@@ -55,10 +73,16 @@ uv sync --locked
 Option A: copy/symlink the project DAG file into Airflow's DAG folder:
 
 ```bash
-ln -s /opt/airflow/hongkong-weather/dags/hko_weather_airflow.py /opt/airflow/dags/hko_weather_airflow.py
+ln -s /opt/llm/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
 ```
 
-Option B: if Airflow already scans this repo's `dags/` directory, no symlink is needed.
+Option B: copy the DAG file directly:
+
+```bash
+cp /opt/llm/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
+```
+
+Option C: if Airflow already scans this repo's `dags/` directory, no symlink is needed.
 
 ## Bootstrap
 
