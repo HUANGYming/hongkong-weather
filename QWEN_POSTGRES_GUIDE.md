@@ -99,7 +99,7 @@ Parsing rules:
 Use this table:
 
 ```sql
-CREATE TABLE IF NOT EXISTS hko_daily_weather_wide (
+CREATE TABLE IF NOT EXISTS fact_feature_date_hkweather_official_1day_daily_v1 (
     date date PRIMARY KEY,
     station_code text NOT NULL DEFAULT 'HKO',
     station_name text NOT NULL DEFAULT 'Hong Kong Observatory',
@@ -147,14 +147,14 @@ CREATE TABLE IF NOT EXISTS hko_daily_weather_wide (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS hko_daily_weather_wide_station_date_idx
-ON hko_daily_weather_wide (station_code, date);
+CREATE INDEX IF NOT EXISTS fact_feature_date_hkweather_official_1day_daily_v1_station_date_idx
+ON fact_feature_date_hkweather_official_1day_daily_v1 (station_code, date);
 ```
 
 Optional ingest log table:
 
 ```sql
-CREATE TABLE IF NOT EXISTS hko_ingest_runs (
+CREATE TABLE IF NOT EXISTS meta_feature_run_hkweather_ingest_1run_event_v1 (
     id bigserial PRIMARY KEY,
     started_at timestamptz NOT NULL DEFAULT now(),
     finished_at timestamptz,
@@ -174,7 +174,7 @@ Use `INSERT ... ON CONFLICT (date) DO UPDATE`.
 Example pattern:
 
 ```sql
-INSERT INTO hko_daily_weather_wide (
+INSERT INTO fact_feature_date_hkweather_official_1day_daily_v1 (
     date,
     station_code,
     station_name,
@@ -248,7 +248,7 @@ Recommended behavior:
 2. Find latest loaded date:
 
 ```sql
-SELECT max(date) FROM hko_daily_weather_wide;
+SELECT max(date) FROM fact_feature_date_hkweather_official_1day_daily_v1;
 ```
 
 3. If no data exists, download years from `2020` through current year.
@@ -257,7 +257,7 @@ SELECT max(date) FROM hko_daily_weather_wide;
 6. Parse rows into long records.
 7. Pivot long records into wide rows by date.
 8. Upsert wide rows into Postgres by `date`.
-9. Record success or failure in `hko_ingest_runs`.
+9. Record success or failure in `meta_feature_run_hkweather_ingest_1run_event_v1`.
 
 Why refresh the last 14 days:
 
@@ -280,7 +280,7 @@ Check row count and date range:
 
 ```sql
 SELECT count(*), min(date), max(date)
-FROM hko_daily_weather_wide;
+FROM fact_feature_date_hkweather_official_1day_daily_v1;
 ```
 
 Check latest data:
@@ -293,7 +293,7 @@ SELECT
     min_temp_c,
     total_rainfall_mm,
     total_rainfall_mm_raw
-FROM hko_daily_weather_wide
+FROM fact_feature_date_hkweather_official_1day_daily_v1
 ORDER BY date DESC
 LIMIT 10;
 ```
@@ -302,7 +302,7 @@ Check station isolation:
 
 ```sql
 SELECT station_code, count(*)
-FROM hko_daily_weather_wide
+FROM fact_feature_date_hkweather_official_1day_daily_v1
 GROUP BY station_code;
 ```
 

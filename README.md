@@ -66,18 +66,31 @@ uv run python update_hko_realtime_postgres.py --mode current --include-rainfall
 Main tables/views:
 
 ```text
-hko_daily_weather_official      Official monthly HKO D1 daily rows
-hko_realtime_observations       Raw realtime/archive snapshots
-hko_daily_weather_provisional   Provisional daily aggregates
-hko_daily_weather_latest_v      Official-first daily wide view
+fact_feature_date_hkweather_1day_daily_v1                Official-first daily wide view for business queries
+fact_feature_date_hkweather_official_1day_daily_v1       Official monthly HKO D1 daily rows
+fact_feature_date_hkweather_provisional_1day_daily_v1    Provisional daily aggregates
+ods_feature_observation_hkweather_10min_realtime_v1      Raw realtime/archive snapshots
+meta_feature_run_hkweather_ingest_1run_event_v1          Ingest run log
+```
+
+Naming convention:
+
+```text
+[department]_[project]_[OK_entity]_[data_field]_[window_size]_[frequency]_[version]
+```
+
+The business-facing object intentionally uses the requested name:
+
+```text
+fact_feature_date_hkweather_1day_daily_v1
 ```
 
 Retention policy:
 
 ```text
-hko_daily_weather_official      Keep forever
-hko_daily_weather_provisional   Keep unless old rows are already covered by official data
-hko_realtime_observations       Keep recent raw snapshots only, default 60 days
+fact_feature_date_hkweather_official_1day_daily_v1      Keep forever
+fact_feature_date_hkweather_provisional_1day_daily_v1   Keep unless old rows are already covered by official data
+ods_feature_observation_hkweather_10min_realtime_v1     Keep recent raw snapshots only, default 60 days
 ```
 
 Cleanup command:
@@ -90,7 +103,7 @@ Use this view for application queries:
 
 ```sql
 SELECT *
-FROM hko_daily_weather_latest_v
+FROM fact_feature_date_hkweather_1day_daily_v1
 ORDER BY date DESC;
 ```
 

@@ -115,13 +115,13 @@ Run these SQL checks:
 
 ```sql
 SELECT count(*), min(date), max(date)
-FROM hko_daily_weather_official;
+FROM fact_feature_date_hkweather_official_1day_daily_v1;
 
 SELECT count(*), min(date), max(date)
-FROM hko_daily_weather_provisional;
+FROM fact_feature_date_hkweather_provisional_1day_daily_v1;
 
 SELECT count(*), min(obs_date_hk), max(obs_date_hk)
-FROM hko_realtime_observations;
+FROM ods_feature_observation_hkweather_10min_realtime_v1;
 
 SELECT
     date,
@@ -130,14 +130,15 @@ SELECT
     max_temp_c,
     min_temp_c,
     total_rainfall_mm
-FROM hko_daily_weather_latest_v
+FROM fact_feature_date_hkweather_1day_daily_v1
 ORDER BY date DESC
 LIMIT 20;
 ```
 
 ## Notes
 
-- Business queries should use `hko_daily_weather_latest_v`.
+- Business queries should use `fact_feature_date_hkweather_1day_daily_v1`.
 - Official D1 rows win over provisional rows in the view.
 - Raw realtime observations are retained for 60 days by default.
 - Airflow should not run multiple active instances of the same DAG; each DAG sets `max_active_runs=1`.
+- Table/view names follow `[department]_[project]_[OK_entity]_[data_field]_[window_size]_[frequency]_[version]`.

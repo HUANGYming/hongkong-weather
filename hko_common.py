@@ -18,6 +18,15 @@ STATION_NAME = "Hong Kong Observatory"
 REALTIME_CSV_STATION_NAME = "HK Observatory"
 RAINFALL_STATION_ID = "RF023"
 
+# Naming convention:
+# [department]_[project]_[OK_entity]_[data_field]_[window_size]_[frequency]_[version]
+OFFICIAL_DAILY_TABLE = "fact_feature_date_hkweather_official_1day_daily_v1"
+PROVISIONAL_DAILY_TABLE = "fact_feature_date_hkweather_provisional_1day_daily_v1"
+LATEST_DAILY_VIEW = "fact_feature_date_hkweather_1day_daily_v1"
+REALTIME_RAW_TABLE = "ods_feature_observation_hkweather_10min_realtime_v1"
+INGEST_RUN_TABLE = "meta_feature_run_hkweather_ingest_1run_event_v1"
+SCHEMA_LOCK_KEY = "hko_weather_schema_v1"
+
 
 @dataclass(frozen=True)
 class Element:

@@ -81,7 +81,7 @@ SELECT
     mslp_hpa,
     mean_relative_humidity_pct,
     total_rainfall_mm
-FROM hko_daily_weather_latest_v
+FROM fact_feature_date_hkweather_1day_daily_v1
 ORDER BY date DESC
 LIMIT 20;
 ```
@@ -109,10 +109,11 @@ dags/hko_weather_airflow.py
 ## 8. Main Objects
 
 ```text
-hko_daily_weather_official      Official monthly HKO D1 daily rows
-hko_realtime_observations       Raw realtime/archive snapshots
-hko_daily_weather_provisional   Provisional daily aggregates
-hko_daily_weather_latest_v      Official-first daily wide view
+fact_feature_date_hkweather_1day_daily_v1                Official-first daily wide view for business queries
+fact_feature_date_hkweather_official_1day_daily_v1       Official monthly HKO D1 daily rows
+fact_feature_date_hkweather_provisional_1day_daily_v1    Provisional daily aggregates
+ods_feature_observation_hkweather_10min_realtime_v1      Raw realtime/archive snapshots
+meta_feature_run_hkweather_ingest_1run_event_v1          Ingest run log
 ```
 
 ## 9. Cleanup

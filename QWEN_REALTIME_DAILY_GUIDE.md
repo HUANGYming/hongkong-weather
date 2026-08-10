@@ -26,10 +26,10 @@ Do not mix it silently with official HKO monthly climate daily data. Either:
 Recommended:
 
 ```text
-hko_daily_weather_wide              official/monthly backfill
-hko_realtime_observations           raw realtime samples
-hko_daily_weather_realtime_wide     provisional daily aggregates
-hko_daily_weather_latest_v          view combining official + provisional
+fact_feature_date_hkweather_official_1day_daily_v1              official/monthly backfill
+ods_feature_observation_hkweather_10min_realtime_v1           raw realtime samples
+fact_feature_date_hkweather_provisional_1day_daily_v1     provisional daily aggregates
+fact_feature_date_hkweather_1day_daily_v1          view combining official + provisional
 ```
 
 ## Official Realtime Sources
@@ -184,7 +184,7 @@ estimated_wet_bulb_c
 ### Raw realtime observations
 
 ```sql
-CREATE TABLE IF NOT EXISTS hko_realtime_observations (
+CREATE TABLE IF NOT EXISTS ods_feature_observation_hkweather_10min_realtime_v1 (
     obs_time timestamptz NOT NULL,
     obs_date_hk date NOT NULL,
     station_code text NOT NULL DEFAULT 'HKO',
@@ -198,8 +198,8 @@ CREATE TABLE IF NOT EXISTS hko_realtime_observations (
     PRIMARY KEY (obs_time, source, metric, station_code)
 );
 
-CREATE INDEX IF NOT EXISTS hko_realtime_observations_date_idx
-ON hko_realtime_observations (obs_date_hk, station_code);
+CREATE INDEX IF NOT EXISTS ods_feature_observation_hkweather_10min_realtime_v1_date_idx
+ON ods_feature_observation_hkweather_10min_realtime_v1 (obs_date_hk, station_code);
 ```
 
 Use metrics:
@@ -216,7 +216,7 @@ hourly_rainfall_mm
 ### Provisional daily wide table
 
 ```sql
-CREATE TABLE IF NOT EXISTS hko_daily_weather_realtime_wide (
+CREATE TABLE IF NOT EXISTS fact_feature_date_hkweather_provisional_1day_daily_v1 (
     date date PRIMARY KEY,
     station_code text NOT NULL DEFAULT 'HKO',
     station_name text NOT NULL DEFAULT 'Hong Kong Observatory',
@@ -245,7 +245,7 @@ CREATE TABLE IF NOT EXISTS hko_daily_weather_realtime_wide (
 This view prefers official monthly values when present and falls back to realtime provisional values.
 
 ```sql
-CREATE OR REPLACE VIEW hko_daily_weather_latest_v AS
+CREATE OR REPLACE VIEW fact_feature_date_hkweather_1day_daily_v1 AS
 SELECT
     COALESCE(o.date, r.date) AS date,
     'HKO' AS station_code,
@@ -268,12 +268,12 @@ SELECT
     END AS data_status,
 
     GREATEST(o.updated_at, r.updated_at) AS updated_at
-FROM hko_daily_weather_wide o
-FULL OUTER JOIN hko_daily_weather_realtime_wide r
+FROM fact_feature_date_hkweather_official_1day_daily_v1 o
+FULL OUTER JOIN fact_feature_date_hkweather_provisional_1day_daily_v1 r
 ON o.date = r.date;
 ```
 
-If `hko_daily_weather_wide` does not have `updated_at`, add it or adjust the view.
+If `fact_feature_date_hkweather_official_1day_daily_v1` does not have `updated_at`, add it or adjust the view.
 
 ## Ingestion Algorithm
 
@@ -312,14 +312,14 @@ JSON station: Hong Kong Observatory / RF023
 
 6. Insert raw observations with `ON CONFLICT DO UPDATE`.
 7. Recompute provisional daily aggregates for the affected Hong Kong dates.
-8. Upsert into `hko_daily_weather_realtime_wide`.
+8. Upsert into `fact_feature_date_hkweather_provisional_1day_daily_v1`.
 
 ## Aggregation SQL
 
 For a given date, recompute provisional wide data from raw observations:
 
 ```sql
-INSERT INTO hko_daily_weather_realtime_wide (
+INSERT INTO fact_feature_date_hkweather_provisional_1day_daily_v1 (
     date,
     station_code,
     station_name,
@@ -356,7 +356,7 @@ SELECT
     min(obs_time),
     max(obs_time),
     now()
-FROM hko_realtime_observations
+FROM ods_feature_observation_hkweather_10min_realtime_v1
 WHERE obs_date_hk = %(date)s
   AND station_code = 'HKO'
 GROUP BY obs_date_hk
@@ -396,7 +396,7 @@ Latest provisional rows:
 
 ```sql
 SELECT *
-FROM hko_daily_weather_realtime_wide
+FROM fact_feature_date_hkweather_provisional_1day_daily_v1
 ORDER BY date DESC
 LIMIT 5;
 ```
@@ -412,7 +412,7 @@ SELECT
     min_temp_c,
     total_rainfall_mm,
     updated_at
-FROM hko_daily_weather_latest_v
+FROM fact_feature_date_hkweather_1day_daily_v1
 ORDER BY date DESC
 LIMIT 10;
 ```
@@ -421,7 +421,7 @@ Raw sample coverage for today:
 
 ```sql
 SELECT metric, count(*), min(obs_time), max(obs_time)
-FROM hko_realtime_observations
+FROM ods_feature_observation_hkweather_10min_realtime_v1
 WHERE obs_date_hk = (now() AT TIME ZONE 'Asia/Hong_Kong')::date
 GROUP BY metric
 ORDER BY metric;
@@ -431,7 +431,7 @@ ORDER BY metric;
 
 After this is implemented:
 
-- Today appears in `hko_daily_weather_realtime_wide`.
-- Today appears in `hko_daily_weather_latest_v` with `data_status = 'provisional'`.
+- Today appears in `fact_feature_date_hkweather_provisional_1day_daily_v1`.
+- Today appears in `fact_feature_date_hkweather_1day_daily_v1` with `data_status = 'provisional'`.
 - Historical monthly values appear with `data_status = 'official'`.
 - When HKO monthly D1 data is released, the official table can overwrite provisional values for completed months.

@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import os
 
+from hko_common import OFFICIAL_DAILY_TABLE, PROVISIONAL_DAILY_TABLE, REALTIME_RAW_TABLE
+
 
 def connect(database_url: str):
     try:
@@ -18,8 +20,8 @@ def connect(database_url: str):
 def cleanup(conn, retention_days: int, prune_official_covered_provisional: bool) -> tuple[int, int]:
     with conn.cursor() as cur:
         cur.execute(
-            """
-            DELETE FROM hko_realtime_observations
+            f"""
+            DELETE FROM {REALTIME_RAW_TABLE}
             WHERE obs_time < now() - (%s * interval '1 day')
             """,
             (retention_days,),
@@ -29,9 +31,9 @@ def cleanup(conn, retention_days: int, prune_official_covered_provisional: bool)
         provisional_deleted = 0
         if prune_official_covered_provisional:
             cur.execute(
-                """
-                DELETE FROM hko_daily_weather_provisional p
-                USING hko_daily_weather_official o
+                f"""
+                DELETE FROM {PROVISIONAL_DAILY_TABLE} p
+                USING {OFFICIAL_DAILY_TABLE} o
                 WHERE p.date = o.date
                   AND p.date < (now() AT TIME ZONE 'Asia/Hong_Kong')::date - (%s * interval '1 day')
                 """,

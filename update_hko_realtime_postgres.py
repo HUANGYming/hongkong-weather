@@ -13,7 +13,12 @@ import requests
 
 from hko_common import (
     HOURLY_RAINFALL_URL,
+    LATEST_DAILY_VIEW,
+    OFFICIAL_DAILY_TABLE,
+    PROVISIONAL_DAILY_TABLE,
     REALTIME_CSV_RESOURCES,
+    REALTIME_RAW_TABLE,
+    SCHEMA_LOCK_KEY,
     STATION_CODE,
     STATION_NAME,
     Observation,
@@ -32,7 +37,7 @@ def connect(database_url: str):
     try:
         import psycopg
     except ImportError as exc:
-        raise SystemExit("Missing dependency: pip install 'psycopg[binary]' requests") from exc
+        raise SystemExit("Missing dependency: uv sync --locked") from exc
     return psycopg.connect(database_url)
 
 
@@ -56,12 +61,12 @@ def fetch_bytes(url: str, params: dict[str, str], timeout: int = 120) -> bytes:
 
 def create_schema(conn) -> None:
     with conn.cursor() as cur:
-        cur.execute("SELECT pg_advisory_lock(hashtext('hko_weather_schema'))")
+        cur.execute("SELECT pg_advisory_lock(hashtext(%s))", (SCHEMA_LOCK_KEY,))
     try:
         with conn.cursor() as cur:
             cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS hko_daily_weather_official (
+                f"""
+                CREATE TABLE IF NOT EXISTS {OFFICIAL_DAILY_TABLE} (
                 date date PRIMARY KEY,
                 station_code text NOT NULL DEFAULT 'HKO',
                 station_name text NOT NULL DEFAULT 'Hong Kong Observatory',
@@ -101,8 +106,8 @@ def create_schema(conn) -> None:
                 """
             )
             cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS hko_realtime_observations (
+                f"""
+                CREATE TABLE IF NOT EXISTS {REALTIME_RAW_TABLE} (
                 obs_time timestamptz NOT NULL,
                 obs_date_hk date NOT NULL,
                 station_code text NOT NULL DEFAULT 'HKO',
@@ -118,14 +123,14 @@ def create_schema(conn) -> None:
                 """
             )
             cur.execute(
-                """
-                CREATE INDEX IF NOT EXISTS hko_realtime_observations_date_idx
-                ON hko_realtime_observations (obs_date_hk, station_code)
+                f"""
+                CREATE INDEX IF NOT EXISTS idx_hkweather_raw_date_v1
+                ON {REALTIME_RAW_TABLE} (obs_date_hk, station_code)
                 """
             )
             cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS hko_daily_weather_provisional (
+                f"""
+                CREATE TABLE IF NOT EXISTS {PROVISIONAL_DAILY_TABLE} (
                 date date PRIMARY KEY,
                 station_code text NOT NULL DEFAULT 'HKO',
                 station_name text NOT NULL DEFAULT 'Hong Kong Observatory',
@@ -148,8 +153,8 @@ def create_schema(conn) -> None:
                 """
             )
             cur.execute(
-                """
-                CREATE OR REPLACE VIEW hko_daily_weather_latest_v AS
+                f"""
+                CREATE OR REPLACE VIEW {LATEST_DAILY_VIEW} AS
                 SELECT
                     COALESCE(o.date, p.date) AS date,
                     'HKO' AS station_code,
@@ -170,14 +175,14 @@ def create_schema(conn) -> None:
                         COALESCE(o.updated_at, '-infinity'::timestamptz),
                         COALESCE(p.updated_at, '-infinity'::timestamptz)
                     ) AS updated_at
-                FROM hko_daily_weather_official o
-                FULL OUTER JOIN hko_daily_weather_provisional p ON o.date = p.date
+                FROM {OFFICIAL_DAILY_TABLE} o
+                FULL OUTER JOIN {PROVISIONAL_DAILY_TABLE} p ON o.date = p.date
                 """
             )
         conn.commit()
     finally:
         with conn.cursor() as cur:
-            cur.execute("SELECT pg_advisory_unlock(hashtext('hko_weather_schema'))")
+            cur.execute("SELECT pg_advisory_unlock(hashtext(%s))", (SCHEMA_LOCK_KEY,))
         conn.commit()
 
 
@@ -185,8 +190,8 @@ def upsert_observations(conn, observations: list[Observation]) -> int:
     if not observations:
         return 0
 
-    sql = """
-        INSERT INTO hko_realtime_observations (
+    sql = f"""
+        INSERT INTO {REALTIME_RAW_TABLE} (
             obs_time,
             obs_date_hk,
             station_code,
@@ -230,13 +235,13 @@ def recompute_provisional(conn, dates: set[date]) -> int:
     if not dates:
         return 0
 
-    sql = """
+    sql = f"""
         WITH rainfall_per_hour AS (
             SELECT DISTINCT ON (obs_date_hk, date_trunc('hour', obs_time))
                 obs_date_hk,
                 date_trunc('hour', obs_time) AS rain_hour,
                 value
-            FROM hko_realtime_observations
+            FROM {REALTIME_RAW_TABLE}
             WHERE obs_date_hk = %s
               AND station_code = 'HKO'
               AND metric = 'hourly_rainfall_mm'
@@ -256,7 +261,7 @@ def recompute_provisional(conn, dates: set[date]) -> int:
                 count(*) FILTER (WHERE metric = 'pressure_hpa' AND value IS NOT NULL) AS sample_count_pressure,
                 min(obs_time) AS first_obs_time,
                 max(obs_time) AS last_obs_time
-            FROM hko_realtime_observations
+            FROM {REALTIME_RAW_TABLE}
             WHERE obs_date_hk = %s
               AND station_code = 'HKO'
             GROUP BY obs_date_hk
@@ -269,7 +274,7 @@ def recompute_provisional(conn, dates: set[date]) -> int:
             FROM rainfall_per_hour
             GROUP BY obs_date_hk
         )
-        INSERT INTO hko_daily_weather_provisional (
+        INSERT INTO {PROVISIONAL_DAILY_TABLE} (
             date,
             station_code,
             station_name,

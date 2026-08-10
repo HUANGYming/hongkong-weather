@@ -14,6 +14,9 @@ import requests
 
 from hko_common import (
     HKO_ELEMENTS,
+    INGEST_RUN_TABLE,
+    OFFICIAL_DAILY_TABLE,
+    SCHEMA_LOCK_KEY,
     STATION_CODE,
     STATION_NAME,
     build_official_wide_rows,
@@ -31,7 +34,7 @@ def connect(database_url: str):
     try:
         import psycopg
     except ImportError as exc:
-        raise SystemExit("Missing dependency: pip install 'psycopg[binary]' requests") from exc
+        raise SystemExit("Missing dependency: uv sync --locked") from exc
     return psycopg.connect(database_url)
 
 
@@ -50,7 +53,7 @@ def fetch_text(url: str, timeout: int = 60) -> str:
 
 def create_schema(conn) -> None:
     with conn.cursor() as cur:
-        cur.execute("SELECT pg_advisory_lock(hashtext('hko_weather_schema'))")
+        cur.execute("SELECT pg_advisory_lock(hashtext(%s))", (SCHEMA_LOCK_KEY,))
     try:
         columns_sql = []
         for element in HKO_ELEMENTS.values():
@@ -65,7 +68,7 @@ def create_schema(conn) -> None:
         with conn.cursor() as cur:
             cur.execute(
                 f"""
-                CREATE TABLE IF NOT EXISTS hko_daily_weather_official (
+                CREATE TABLE IF NOT EXISTS {OFFICIAL_DAILY_TABLE} (
                     date date PRIMARY KEY,
                     station_code text NOT NULL DEFAULT 'HKO',
                     station_name text NOT NULL DEFAULT 'Hong Kong Observatory',
@@ -76,14 +79,14 @@ def create_schema(conn) -> None:
                 """
             )
             cur.execute(
-                """
-                CREATE INDEX IF NOT EXISTS hko_daily_weather_official_station_date_idx
-                ON hko_daily_weather_official (station_code, date)
+                f"""
+                CREATE INDEX IF NOT EXISTS idx_hkweather_official_station_date_v1
+                ON {OFFICIAL_DAILY_TABLE} (station_code, date)
                 """
             )
             cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS hko_ingest_runs (
+                f"""
+                CREATE TABLE IF NOT EXISTS {INGEST_RUN_TABLE} (
                     id bigserial PRIMARY KEY,
                     started_at timestamptz NOT NULL DEFAULT now(),
                     finished_at timestamptz,
@@ -100,13 +103,13 @@ def create_schema(conn) -> None:
         conn.commit()
     finally:
         with conn.cursor() as cur:
-            cur.execute("SELECT pg_advisory_unlock(hashtext('hko_weather_schema'))")
+            cur.execute("SELECT pg_advisory_unlock(hashtext(%s))", (SCHEMA_LOCK_KEY,))
         conn.commit()
 
 
 def latest_official_date(conn) -> date | None:
     with conn.cursor() as cur:
-        cur.execute("SELECT max(date) FROM hko_daily_weather_official")
+        cur.execute(f"SELECT max(date) FROM {OFFICIAL_DAILY_TABLE}")
         row = cur.fetchone()
     return row[0] if row and row[0] else None
 
@@ -132,7 +135,7 @@ def upsert_official_rows(conn, rows: list[dict[str, object]]) -> int:
     update_columns = [column for column in columns if column != "date"]
     assignments = ", ".join(f"{column} = EXCLUDED.{column}" for column in update_columns)
     sql = f"""
-        INSERT INTO hko_daily_weather_official ({", ".join(columns)})
+        INSERT INTO {OFFICIAL_DAILY_TABLE} ({", ".join(columns)})
         VALUES ({placeholders})
         ON CONFLICT (date) DO UPDATE SET
             {assignments},
@@ -149,8 +152,8 @@ def upsert_official_rows(conn, rows: list[dict[str, object]]) -> int:
 def insert_run(conn, years: list[int]) -> int:
     with conn.cursor() as cur:
         cur.execute(
-            """
-            INSERT INTO hko_ingest_runs (status, job_name, years)
+            f"""
+            INSERT INTO {INGEST_RUN_TABLE} (status, job_name, years)
             VALUES ('running', 'official_d1', %s)
             RETURNING id
             """,
@@ -164,8 +167,8 @@ def insert_run(conn, years: list[int]) -> int:
 def finish_run(conn, run_id: int, status: str, rows: list[dict[str, object]], error: str | None = None) -> None:
     with conn.cursor() as cur:
         cur.execute(
-            """
-            UPDATE hko_ingest_runs
+            f"""
+            UPDATE {INGEST_RUN_TABLE}
             SET finished_at = now(),
                 status = %s,
                 rows_upserted = %s,
