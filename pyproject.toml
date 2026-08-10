@@ -1,0 +1,13 @@
+[project]
+name = "hongkong-weather"
+version = "0.1.0"
+description = "HKO daily official and realtime/provisional weather ingestion for PostgreSQL."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "psycopg[binary]>=3.1",
+    "requests>=2.31",
+]
+
+[tool.uv]
+package = false

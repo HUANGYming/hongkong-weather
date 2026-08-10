@@ -381,13 +381,13 @@ ON CONFLICT (date) DO UPDATE SET
 Run realtime ingestion every 10 minutes:
 
 ```cron
-*/10 * * * * cd /path/to/hko-weather && DATABASE_URL="postgresql://user:password@host:5432/dbname" /usr/bin/python3 update_hko_realtime_postgres.py >> logs/hko_realtime.log 2>&1
+*/10 * * * * cd /path/to/hko-weather && DATABASE_URL="postgresql://user:password@host:5432/dbname" uv run python update_hko_realtime_postgres.py >> logs/hko_realtime.log 2>&1
 ```
 
 Also keep the monthly/official updater:
 
 ```cron
-15 8 * * * cd /path/to/hko-weather && DATABASE_URL="postgresql://user:password@host:5432/dbname" /usr/bin/python3 update_hko_postgres.py >> logs/hko_official.log 2>&1
+15 8 * * * cd /path/to/hko-weather && DATABASE_URL="postgresql://user:password@host:5432/dbname" uv run python update_hko_postgres.py >> logs/hko_official.log 2>&1
 ```
 
 ## Validation Queries
@@ -435,4 +435,3 @@ After this is implemented:
 - Today appears in `hko_daily_weather_latest_v` with `data_status = 'provisional'`.
 - Historical monthly values appear with `data_status = 'official'`.
 - When HKO monthly D1 data is released, the official table can overwrite provisional values for completed months.
-

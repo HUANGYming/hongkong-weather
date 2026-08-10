@@ -31,9 +31,9 @@ The default run downloads year-by-year from `2020` through the current year.
 Install dependencies:
 
 ```bash
-python3 -m venv .venv
-. .venv/bin/activate
-pip install -r requirements.txt
+# Install uv first if the server does not have it:
+# curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync --locked
 ```
 
 Configure Postgres:
@@ -45,13 +45,13 @@ export DATABASE_URL="postgresql://user:password@host:5432/dbname"
 Load official HKO D1 data from 2020 onward:
 
 ```bash
-python3 update_hko_postgres.py --full-refresh
+uv run python update_hko_postgres.py --full-refresh
 ```
 
 Backfill the missing provisional period from DATA.GOV.HK historical archive:
 
 ```bash
-python3 update_hko_realtime_postgres.py \
+uv run python update_hko_realtime_postgres.py \
   --mode archive \
   --start-date 2026-07-01 \
   --end-date 2026-08-09
@@ -60,7 +60,7 @@ python3 update_hko_realtime_postgres.py \
 Update current provisional observations:
 
 ```bash
-python3 update_hko_realtime_postgres.py --mode current --include-rainfall
+uv run python update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 
 Main tables/views:
@@ -84,13 +84,13 @@ Production cron example:
 
 ```cron
 # Current provisional snapshots, every 10 minutes
-*/10 * * * * cd /path/to/hongkong-weather && . .venv/bin/activate && python update_hko_realtime_postgres.py --mode current --include-rainfall >> logs/hko_realtime.log 2>&1
+*/10 * * * * cd /path/to/hongkong-weather && uv run python update_hko_realtime_postgres.py --mode current --include-rainfall >> logs/hko_realtime.log 2>&1
 
 # Historical archive backfill for yesterday/recent corrections, daily
-25 1 * * * cd /path/to/hongkong-weather && . .venv/bin/activate && python update_hko_realtime_postgres.py --mode archive --archive-lookback-days 14 >> logs/hko_archive.log 2>&1
+25 1 * * * cd /path/to/hongkong-weather && uv run python update_hko_realtime_postgres.py --mode archive --archive-lookback-days 14 >> logs/hko_archive.log 2>&1
 
 # Official D1 checker, daily
-15 8 * * * cd /path/to/hongkong-weather && . .venv/bin/activate && python update_hko_postgres.py >> logs/hko_official.log 2>&1
+15 8 * * * cd /path/to/hongkong-weather && uv run python update_hko_postgres.py >> logs/hko_official.log 2>&1
 ```
 
 ## Tests
@@ -98,7 +98,7 @@ Production cron example:
 Offline parser tests:
 
 ```bash
-python3 -m unittest discover -s tests -v
+uv run python -m unittest discover -s tests -v
 ```
 
 ## SQLite Wide Table
@@ -106,7 +106,7 @@ python3 -m unittest discover -s tests -v
 Create or update the SQLite database:
 
 ```bash
-python3 update_hko_database.py
+uv run python update_hko_database.py
 ```
 
 Default database and table:
@@ -127,7 +127,7 @@ sqlite3 data/hko_weather.sqlite "select date, mean_temp_c, total_rainfall_mm fro
 First run or forced rebuild:
 
 ```bash
-python3 update_hko_database.py --full-refresh
+uv run python update_hko_database.py --full-refresh
 ```
 
 Daily update behavior:

@@ -203,18 +203,22 @@ ON CONFLICT (date) DO UPDATE SET
 
 In real code, include all weather columns in the insert and update list.
 
-## Recommended Python Dependencies
+## Python Dependency Management
 
-Use either:
+Use `uv`:
 
 ```bash
-pip install requests psycopg[binary]
+uv sync --locked
 ```
 
-Or:
+Dependencies should live in `pyproject.toml`:
 
-```bash
-pip install requests psycopg2-binary
+```toml
+[project]
+dependencies = [
+    "requests>=2.31",
+    "psycopg[binary]>=3.1",
+]
 ```
 
 Prefer `psycopg` v3 if starting fresh.
@@ -265,7 +269,7 @@ Why refresh the last 14 days:
 Run once per day, for example 08:15 server local time:
 
 ```cron
-15 8 * * * cd /path/to/hko-weather && /usr/bin/python3 update_hko_postgres.py >> logs/hko_update.log 2>&1
+15 8 * * * cd /path/to/hko-weather && uv run python update_hko_postgres.py >> logs/hko_update.log 2>&1
 ```
 
 If the server timezone is UTC and you want Hong Kong morning time, adjust the cron schedule accordingly.
@@ -341,12 +345,13 @@ Please produce:
 
 ```text
 update_hko_postgres.py
-requirements.txt
+pyproject.toml
+uv.lock
 README server run section
 ```
 
 The final server command should be:
 
 ```bash
-DATABASE_URL="postgresql://user:password@host:5432/dbname" python3 update_hko_postgres.py
+DATABASE_URL="postgresql://user:password@host:5432/dbname" uv run python update_hko_postgres.py
 ```
