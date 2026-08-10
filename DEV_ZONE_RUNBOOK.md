@@ -107,3 +107,17 @@ hko_realtime_observations       Raw realtime/archive snapshots
 hko_daily_weather_provisional   Provisional daily aggregates
 hko_daily_weather_latest_v      Official-first daily wide view
 ```
+
+## 9. Cleanup
+
+Raw realtime snapshots are only needed for recent recomputation. Keep 60 days by default:
+
+```bash
+uv run python cleanup_hko_realtime_raw.py --retention-days 60
+```
+
+Cron:
+
+```cron
+40 2 * * * cd /path/to/hongkong-weather && uv run python cleanup_hko_realtime_raw.py --retention-days 60 >> logs/hko_cleanup.log 2>&1
+```

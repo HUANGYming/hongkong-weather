@@ -72,6 +72,20 @@ hko_daily_weather_provisional   Provisional daily aggregates
 hko_daily_weather_latest_v      Official-first daily wide view
 ```
 
+Retention policy:
+
+```text
+hko_daily_weather_official      Keep forever
+hko_daily_weather_provisional   Keep unless old rows are already covered by official data
+hko_realtime_observations       Keep recent raw snapshots only, default 60 days
+```
+
+Cleanup command:
+
+```bash
+uv run python cleanup_hko_realtime_raw.py --retention-days 60
+```
+
 Use this view for application queries:
 
 ```sql
@@ -91,6 +105,9 @@ Production cron example:
 
 # Official D1 checker, daily
 15 8 * * * cd /path/to/hongkong-weather && uv run python update_hko_postgres.py >> logs/hko_official.log 2>&1
+
+# Raw realtime retention cleanup, daily
+40 2 * * * cd /path/to/hongkong-weather && uv run python cleanup_hko_realtime_raw.py --retention-days 60 >> logs/hko_cleanup.log 2>&1
 ```
 
 ## Tests

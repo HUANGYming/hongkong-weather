@@ -49,52 +49,59 @@ def fetch_text(url: str, timeout: int = 60) -> str:
 
 
 def create_schema(conn) -> None:
-    columns_sql = []
-    for element in HKO_ELEMENTS.values():
-        columns_sql.extend(
-            [
-                f"{element.column} double precision",
-                f"{element.column}_raw text",
-                f"{element.column}_completeness text",
-            ]
-        )
-
     with conn.cursor() as cur:
-        cur.execute(
-            f"""
-            CREATE TABLE IF NOT EXISTS hko_daily_weather_official (
-                date date PRIMARY KEY,
-                station_code text NOT NULL DEFAULT 'HKO',
-                station_name text NOT NULL DEFAULT 'Hong Kong Observatory',
-                {", ".join(columns_sql)},
-                source text NOT NULL DEFAULT 'hko_d1',
-                updated_at timestamptz NOT NULL DEFAULT now()
+        cur.execute("SELECT pg_advisory_lock(hashtext('hko_weather_schema'))")
+    try:
+        columns_sql = []
+        for element in HKO_ELEMENTS.values():
+            columns_sql.extend(
+                [
+                    f"{element.column} double precision",
+                    f"{element.column}_raw text",
+                    f"{element.column}_completeness text",
+                ]
             )
-            """
-        )
-        cur.execute(
-            """
-            CREATE INDEX IF NOT EXISTS hko_daily_weather_official_station_date_idx
-            ON hko_daily_weather_official (station_code, date)
-            """
-        )
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS hko_ingest_runs (
-                id bigserial PRIMARY KEY,
-                started_at timestamptz NOT NULL DEFAULT now(),
-                finished_at timestamptz,
-                status text NOT NULL,
-                job_name text NOT NULL,
-                years text,
-                rows_upserted integer,
-                min_date date,
-                max_date date,
-                error text
+
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                CREATE TABLE IF NOT EXISTS hko_daily_weather_official (
+                    date date PRIMARY KEY,
+                    station_code text NOT NULL DEFAULT 'HKO',
+                    station_name text NOT NULL DEFAULT 'Hong Kong Observatory',
+                    {", ".join(columns_sql)},
+                    source text NOT NULL DEFAULT 'hko_d1',
+                    updated_at timestamptz NOT NULL DEFAULT now()
+                )
+                """
             )
-            """
-        )
-    conn.commit()
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS hko_daily_weather_official_station_date_idx
+                ON hko_daily_weather_official (station_code, date)
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS hko_ingest_runs (
+                    id bigserial PRIMARY KEY,
+                    started_at timestamptz NOT NULL DEFAULT now(),
+                    finished_at timestamptz,
+                    status text NOT NULL,
+                    job_name text NOT NULL,
+                    years text,
+                    rows_upserted integer,
+                    min_date date,
+                    max_date date,
+                    error text
+                )
+                """
+            )
+        conn.commit()
+    finally:
+        with conn.cursor() as cur:
+            cur.execute("SELECT pg_advisory_unlock(hashtext('hko_weather_schema'))")
+        conn.commit()
 
 
 def latest_official_date(conn) -> date | None:

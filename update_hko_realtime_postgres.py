@@ -56,9 +56,12 @@ def fetch_bytes(url: str, params: dict[str, str], timeout: int = 120) -> bytes:
 
 def create_schema(conn) -> None:
     with conn.cursor() as cur:
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS hko_daily_weather_official (
+        cur.execute("SELECT pg_advisory_lock(hashtext('hko_weather_schema'))")
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS hko_daily_weather_official (
                 date date PRIMARY KEY,
                 station_code text NOT NULL DEFAULT 'HKO',
                 station_name text NOT NULL DEFAULT 'Hong Kong Observatory',
@@ -94,12 +97,12 @@ def create_schema(conn) -> None:
                 grass_min_temp_c_completeness text,
                 source text NOT NULL DEFAULT 'hko_d1',
                 updated_at timestamptz NOT NULL DEFAULT now()
+                )
+                """
             )
-            """
-        )
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS hko_realtime_observations (
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS hko_realtime_observations (
                 obs_time timestamptz NOT NULL,
                 obs_date_hk date NOT NULL,
                 station_code text NOT NULL DEFAULT 'HKO',
@@ -111,18 +114,18 @@ def create_schema(conn) -> None:
                 unit text,
                 fetched_at timestamptz NOT NULL DEFAULT now(),
                 PRIMARY KEY (obs_time, source, metric, station_code)
+                )
+                """
             )
-            """
-        )
-        cur.execute(
-            """
-            CREATE INDEX IF NOT EXISTS hko_realtime_observations_date_idx
-            ON hko_realtime_observations (obs_date_hk, station_code)
-            """
-        )
-        cur.execute(
-            """
-            CREATE TABLE IF NOT EXISTS hko_daily_weather_provisional (
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS hko_realtime_observations_date_idx
+                ON hko_realtime_observations (obs_date_hk, station_code)
+                """
+            )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS hko_daily_weather_provisional (
                 date date PRIMARY KEY,
                 station_code text NOT NULL DEFAULT 'HKO',
                 station_name text NOT NULL DEFAULT 'Hong Kong Observatory',
@@ -141,34 +144,41 @@ def create_schema(conn) -> None:
                 first_obs_time timestamptz,
                 last_obs_time timestamptz,
                 updated_at timestamptz NOT NULL DEFAULT now()
+                )
+                """
             )
-            """
-        )
-        cur.execute(
-            """
-            CREATE OR REPLACE VIEW hko_daily_weather_latest_v AS
-            SELECT
-                COALESCE(o.date, p.date) AS date,
-                'HKO' AS station_code,
-                'Hong Kong Observatory' AS station_name,
-                COALESCE(o.mslp_hpa, p.mslp_hpa) AS mslp_hpa,
-                COALESCE(o.mean_temp_c, p.mean_temp_c) AS mean_temp_c,
-                o.mean_dew_point_c,
-                o.mean_wet_bulb_c,
-                COALESCE(o.mean_relative_humidity_pct, p.mean_relative_humidity_pct) AS mean_relative_humidity_pct,
-                o.mean_cloud_amount_pct,
-                COALESCE(o.total_rainfall_mm, p.total_rainfall_mm) AS total_rainfall_mm,
-                COALESCE(o.max_temp_c, p.max_temp_c) AS max_temp_c,
-                COALESCE(o.min_temp_c, p.min_temp_c) AS min_temp_c,
-                o.grass_min_temp_c,
-                CASE WHEN o.date IS NOT NULL THEN 'official' ELSE 'provisional' END AS data_status,
-                COALESCE(o.source, p.source) AS source,
-                GREATEST(o.updated_at, p.updated_at) AS updated_at
-            FROM hko_daily_weather_official o
-            FULL OUTER JOIN hko_daily_weather_provisional p ON o.date = p.date
-            """
-        )
-    conn.commit()
+            cur.execute(
+                """
+                CREATE OR REPLACE VIEW hko_daily_weather_latest_v AS
+                SELECT
+                    COALESCE(o.date, p.date) AS date,
+                    'HKO' AS station_code,
+                    'Hong Kong Observatory' AS station_name,
+                    COALESCE(o.mslp_hpa, p.mslp_hpa) AS mslp_hpa,
+                    COALESCE(o.mean_temp_c, p.mean_temp_c) AS mean_temp_c,
+                    o.mean_dew_point_c,
+                    o.mean_wet_bulb_c,
+                    COALESCE(o.mean_relative_humidity_pct, p.mean_relative_humidity_pct) AS mean_relative_humidity_pct,
+                    o.mean_cloud_amount_pct,
+                    COALESCE(o.total_rainfall_mm, p.total_rainfall_mm) AS total_rainfall_mm,
+                    COALESCE(o.max_temp_c, p.max_temp_c) AS max_temp_c,
+                    COALESCE(o.min_temp_c, p.min_temp_c) AS min_temp_c,
+                    o.grass_min_temp_c,
+                    CASE WHEN o.date IS NOT NULL THEN 'official' ELSE 'provisional' END AS data_status,
+                    COALESCE(o.source, p.source) AS source,
+                    GREATEST(
+                        COALESCE(o.updated_at, '-infinity'::timestamptz),
+                        COALESCE(p.updated_at, '-infinity'::timestamptz)
+                    ) AS updated_at
+                FROM hko_daily_weather_official o
+                FULL OUTER JOIN hko_daily_weather_provisional p ON o.date = p.date
+                """
+            )
+        conn.commit()
+    finally:
+        with conn.cursor() as cur:
+            cur.execute("SELECT pg_advisory_unlock(hashtext('hko_weather_schema'))")
+        conn.commit()
 
 
 def upsert_observations(conn, observations: list[Observation]) -> int:
