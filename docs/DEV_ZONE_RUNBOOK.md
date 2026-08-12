@@ -64,11 +64,10 @@ For the current known gap:
 ```bash
 uv run python update_hko_realtime_postgres.py \
   --mode archive \
-  --start-date 2026-07-01 \
-  --end-date 2026-08-12
+  --start-date 2026-07-01
 ```
 
-This uses DATA.GOV.HK Historical Archive to replay HKO 10-minute snapshots and aggregate daily provisional rows.
+This uses DATA.GOV.HK Historical Archive to replay HKO 10-minute snapshots and aggregate daily provisional rows. Historical Archive is only available through yesterday; run the current realtime job afterwards to fill today's provisional row.
 
 Fields covered by archive backfill:
 

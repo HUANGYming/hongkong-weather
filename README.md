@@ -107,9 +107,10 @@ Backfill provisional daily rows:
 ```bash
 uv run python update_hko_realtime_postgres.py \
   --mode archive \
-  --start-date 2026-07-01 \
-  --end-date 2026-08-12
+  --start-date 2026-07-01
 ```
+
+DATA.GOV.HK Historical Archive only publishes through yesterday. Today is filled by the current realtime job.
 
 Run current realtime again:
 

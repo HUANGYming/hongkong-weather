@@ -102,7 +102,7 @@ It runs:
 
 ```text
 1. uv run python update_hko_postgres.py --full-refresh
-2. uv run python update_hko_realtime_postgres.py --mode archive --start-date 2026-07-01 --end-date 2026-08-12
+2. uv run python update_hko_realtime_postgres.py --mode archive --start-date 2026-07-01
 3. uv run python update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 

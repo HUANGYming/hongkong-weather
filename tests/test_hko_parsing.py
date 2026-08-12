@@ -5,6 +5,7 @@ import tempfile
 import unittest
 import zipfile
 from datetime import date
+from unittest import mock
 
 from hko_common import (
     HKO_ELEMENTS,
@@ -16,6 +17,7 @@ from hko_common import (
     parse_realtime_archive_zip,
     parse_realtime_csv_text,
 )
+import update_hko_realtime_postgres as realtime
 
 
 class HkoParsingTests(unittest.TestCase):
@@ -115,6 +117,44 @@ class HkoParsingTests(unittest.TestCase):
                     os.environ.pop(key, None)
                 else:
                     os.environ[key] = value
+
+    def test_archive_end_date_caps_to_yesterday(self):
+        captured = {}
+
+        class DummyConnection:
+            def close(self):
+                captured["closed"] = True
+
+        def fake_fetch_archive(start_date, end_date):
+            captured["start_date"] = start_date
+            captured["end_date"] = end_date
+            return []
+
+        argv = [
+            "update_hko_realtime_postgres.py",
+            "--database-url",
+            "postgresql://user:pass@localhost:5432/db",
+            "--mode",
+            "archive",
+            "--start-date",
+            "2026-07-01",
+            "--end-date",
+            "2026-08-12",
+        ]
+        with (
+            mock.patch("sys.argv", argv),
+            mock.patch.object(realtime, "hk_today", return_value=date(2026, 8, 12)),
+            mock.patch.object(realtime, "connect", return_value=DummyConnection()),
+            mock.patch.object(realtime, "create_schema"),
+            mock.patch.object(realtime, "fetch_archive_observations", side_effect=fake_fetch_archive),
+            mock.patch.object(realtime, "upsert_observations", return_value=0),
+            mock.patch.object(realtime, "recompute_provisional", return_value=0),
+        ):
+            self.assertEqual(realtime.main(), 0)
+
+        self.assertEqual(captured["start_date"], date(2026, 7, 1))
+        self.assertEqual(captured["end_date"], date(2026, 8, 11))
+        self.assertTrue(captured["closed"])
 
 
 if __name__ == "__main__":

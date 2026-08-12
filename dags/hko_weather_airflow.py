@@ -142,8 +142,7 @@ with DAG(
         bash_command=uv_command(
             "update_hko_realtime_postgres.py "
             "--mode archive "
-            "--start-date 2026-07-01 "
-            "--end-date 2026-08-12"
+            "--start-date 2026-07-01"
         ),
         execution_timeout=timedelta(hours=2),
     )

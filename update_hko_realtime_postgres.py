@@ -374,7 +374,14 @@ def archive_available_dates(resource_url: str, start_date: date, end_date: date)
         timeout=60,
         headers={"User-Agent": "hko-realtime-updater/1.0"},
     )
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        detail = response.text.strip().replace("\n", " ")[:500]
+        raise RuntimeError(
+            "DATA.GOV.HK archive list request failed "
+            f"for {start_date} to {end_date}: HTTP {response.status_code}. {detail}"
+        ) from exc
     payload = response.json()
     dates: set[date] = set()
     for item in payload.get("data-files", []):
@@ -419,7 +426,19 @@ def main() -> int:
         raise SystemExit("DATABASE_URL is required")
 
     today = hk_today()
-    end_date = args.end_date or (today - timedelta(days=1))
+    latest_archive_date = today - timedelta(days=1)
+    if args.mode in {"archive", "both"}:
+        end_date = args.end_date or latest_archive_date
+        if end_date > latest_archive_date:
+            print(
+                "DATA.GOV.HK Historical Archive is available through "
+                f"{latest_archive_date}; using that instead of {end_date}. "
+                "Run --mode current --include-rainfall for today's live rows.",
+                file=sys.stderr,
+            )
+            end_date = latest_archive_date
+    else:
+        end_date = args.end_date or today
     start_date = args.start_date or (end_date - timedelta(days=args.archive_lookback_days - 1))
     if start_date > end_date:
         raise SystemExit("--start-date cannot be after --end-date")
