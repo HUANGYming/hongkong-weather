@@ -22,6 +22,7 @@ from hko_common import (
     STATION_CODE,
     STATION_NAME,
     Observation,
+    ensure_database_schema,
     hk_today,
     parse_hourly_rainfall_json,
     parse_realtime_archive_zip,
@@ -64,6 +65,7 @@ def create_schema(conn) -> None:
         cur.execute("SELECT pg_advisory_lock(hashtext(%s))", (SCHEMA_LOCK_KEY,))
     try:
         with conn.cursor() as cur:
+            ensure_database_schema(cur)
             cur.execute(
                 f"""
                 CREATE TABLE IF NOT EXISTS {OFFICIAL_DAILY_TABLE} (

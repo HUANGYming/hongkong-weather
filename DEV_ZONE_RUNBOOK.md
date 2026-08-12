@@ -16,9 +16,18 @@ uv sync --locked
 ## 2. Configure
 
 ```bash
-export DATABASE_URL="postgresql://user:password@host:5432/dbname"
+export DB_HOST="codppybkdbd01.melco-resorts.com"
+export DB_PORT="5432"
+export DB_NAME="bigdata_prod"
+export DB_USER="1018195"
+export DB_PASS="<ask-owner-or-load-from-secret-manager>"
+export HKO_DB_SCHEMA="generic_sma_ai_shared"
+
+export DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 mkdir -p logs
 ```
+
+Do not commit the real password. Set it in the shell, Airflow environment, or your secret manager.
 
 ## 3. Run Offline Tests
 
@@ -86,6 +95,23 @@ ORDER BY date DESC
 LIMIT 20;
 ```
 
+If you use the DEV ZONE shared schema directly:
+
+```sql
+SELECT
+    date,
+    data_status,
+    mean_temp_c,
+    max_temp_c,
+    min_temp_c,
+    mslp_hpa,
+    mean_relative_humidity_pct,
+    total_rainfall_mm
+FROM generic_sma_ai_shared.fact_feature_date_hkweather_1day_daily_v1
+ORDER BY date DESC
+LIMIT 20;
+```
+
 ## 7. Cron
 
 ```cron
@@ -114,6 +140,12 @@ fact_feature_date_hkweather_official_1day_daily_v1       Official monthly HKO D1
 fact_feature_date_hkweather_provisional_1day_daily_v1    Provisional daily aggregates
 ods_feature_observation_hkweather_10min_realtime_v1      Raw realtime/archive snapshots
 meta_feature_run_hkweather_ingest_1run_event_v1          Ingest run log
+```
+
+In DEV ZONE these objects are created under:
+
+```text
+generic_sma_ai_shared
 ```
 
 ## 9. Cleanup

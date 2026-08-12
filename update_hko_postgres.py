@@ -20,6 +20,7 @@ from hko_common import (
     STATION_CODE,
     STATION_NAME,
     build_official_wide_rows,
+    ensure_database_schema,
     hk_today,
     official_insert_columns,
     parse_d1_csv_text,
@@ -66,6 +67,7 @@ def create_schema(conn) -> None:
             )
 
         with conn.cursor() as cur:
+            ensure_database_schema(cur)
             cur.execute(
                 f"""
                 CREATE TABLE IF NOT EXISTS {OFFICIAL_DAILY_TABLE} (

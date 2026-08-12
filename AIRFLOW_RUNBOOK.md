@@ -27,12 +27,14 @@ Every Airflow worker must have:
 uv
 git checkout of this repo
 DATABASE_URL environment variable
+HKO_DB_SCHEMA environment variable when writing outside `public`
 ```
 
 Recommended environment variables:
 
 ```bash
 export DATABASE_URL="postgresql://user:password@host:5432/dbname"
+export HKO_DB_SCHEMA="generic_sma_ai_shared"
 export HKO_PROJECT_DIR="/opt/llm/hongkong-weather"
 export HKO_ARCHIVE_LOOKBACK_DAYS=14
 export HKO_RAW_RETENTION_DAYS=60
