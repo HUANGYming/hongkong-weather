@@ -118,6 +118,8 @@ Run current realtime again:
 uv run python update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 
+The final business relation `fact_feature_date_hkweather_1day_daily_v1` is a view. It is created by either the official loader or the realtime loader.
+
 ## Verify
 
 Build `DATABASE_URL` for `psql` if you only configured `DB_*` in `.env`:

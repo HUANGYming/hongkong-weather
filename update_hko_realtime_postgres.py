@@ -13,7 +13,6 @@ import requests
 
 from hko_common import (
     HOURLY_RAINFALL_URL,
-    LATEST_DAILY_VIEW,
     MEDIUM_VARCHAR,
     OFFICIAL_DAILY_TABLE,
     PROVISIONAL_DAILY_TABLE,
@@ -28,9 +27,11 @@ from hko_common import (
     database_url_from_env,
     ensure_database_schema,
     hk_today,
+    latest_daily_view_sql,
     parse_hourly_rainfall_json,
     parse_realtime_archive_zip,
     parse_realtime_csv_text,
+    provisional_daily_table_sql,
 )
 
 
@@ -124,65 +125,8 @@ def create_schema(conn) -> None:
                 )
                 """
             )
-            cur.execute(
-                f"""
-                CREATE TABLE IF NOT EXISTS {PROVISIONAL_DAILY_TABLE} (
-                date date PRIMARY KEY,
-                station_code {SHORT_VARCHAR} NOT NULL DEFAULT 'HKO',
-                station_name {SHORT_VARCHAR} NOT NULL DEFAULT 'Hong Kong Observatory',
-                mslp_hpa double precision,
-                mean_temp_c double precision,
-                mean_relative_humidity_pct double precision,
-                total_rainfall_mm double precision,
-                max_temp_c double precision,
-                min_temp_c double precision,
-                sample_count_temp integer,
-                sample_count_humidity integer,
-                sample_count_pressure integer,
-                sample_count_rainfall integer,
-                data_status {SHORT_VARCHAR} NOT NULL DEFAULT 'provisional',
-                source {SHORT_VARCHAR} NOT NULL DEFAULT 'hko_realtime',
-                first_obs_time timestamptz,
-                last_obs_time timestamptz,
-                updated_at timestamptz NOT NULL DEFAULT now()
-                )
-                """
-            )
-            cur.execute(
-                f"""
-                DROP VIEW IF EXISTS {LATEST_DAILY_VIEW}
-                """
-            )
-            cur.execute(
-                f"""
-                CREATE OR REPLACE VIEW {LATEST_DAILY_VIEW} AS
-                SELECT
-                    COALESCE(o.date, p.date) AS date,
-                    CAST('HKO' AS {SHORT_VARCHAR}) AS station_code,
-                    CAST('Hong Kong Observatory' AS {SHORT_VARCHAR}) AS station_name,
-                    COALESCE(o.mslp_hpa, p.mslp_hpa) AS mslp_hpa,
-                    COALESCE(o.mean_temp_c, p.mean_temp_c) AS mean_temp_c,
-                    o.mean_dew_point_c,
-                    o.mean_wet_bulb_c,
-                    COALESCE(o.mean_relative_humidity_pct, p.mean_relative_humidity_pct) AS mean_relative_humidity_pct,
-                    o.mean_cloud_amount_pct,
-                    COALESCE(o.total_rainfall_mm, p.total_rainfall_mm) AS total_rainfall_mm,
-                    COALESCE(o.max_temp_c, p.max_temp_c) AS max_temp_c,
-                    COALESCE(o.min_temp_c, p.min_temp_c) AS min_temp_c,
-                    o.grass_min_temp_c,
-                    CAST(
-                        CASE WHEN o.date IS NOT NULL THEN 'official' ELSE 'provisional' END
-                        AS {SHORT_VARCHAR}
-                    ) AS data_status,
-                    COALESCE(o.source, p.source) AS source,
-                    GREATEST(
-                        COALESCE(o.updated_at, '-infinity'::timestamptz),
-                        COALESCE(p.updated_at, '-infinity'::timestamptz)
-                    ) AS updated_at
-                FROM {OFFICIAL_DAILY_TABLE} o
-                FULL OUTER JOIN {PROVISIONAL_DAILY_TABLE} p ON o.date = p.date
-                """
-            )
+            cur.execute(provisional_daily_table_sql())
+            cur.execute(latest_daily_view_sql())
         conn.commit()
     except Exception:
         conn.rollback()

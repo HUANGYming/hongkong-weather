@@ -27,9 +27,11 @@ from hko_common import (
     database_url_from_env,
     ensure_database_schema,
     hk_today,
+    latest_daily_view_sql,
     official_insert_columns,
     parse_d1_csv_text,
     parse_daily_extract_json_text,
+    provisional_daily_table_sql,
 )
 
 
@@ -109,6 +111,8 @@ def create_schema(conn) -> None:
                 )
                 """
             )
+            cur.execute(provisional_daily_table_sql())
+            cur.execute(latest_daily_view_sql())
         conn.commit()
     except Exception:
         conn.rollback()
