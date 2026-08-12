@@ -10,7 +10,27 @@ import re
 import zipfile
 from dataclasses import dataclass
 from datetime import date, datetime
+from pathlib import Path
 from zoneinfo import ZoneInfo
+
+
+def load_dotenv(path: str | os.PathLike[str] = ".env") -> None:
+    env_path = Path(path)
+    if not env_path.exists():
+        return
+
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and key not in os.environ:
+            os.environ[key] = value
+
+
+load_dotenv()
 
 
 HK_TZ = ZoneInfo("Asia/Hong_Kong")

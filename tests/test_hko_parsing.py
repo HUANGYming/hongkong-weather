@@ -1,5 +1,7 @@
 import io
 import json
+import os
+import tempfile
 import unittest
 import zipfile
 from datetime import date
@@ -7,6 +9,7 @@ from datetime import date
 from hko_common import (
     HKO_ELEMENTS,
     build_official_wide_rows,
+    load_dotenv,
     parse_d1_csv_text,
     parse_hourly_rainfall_json,
     parse_realtime_archive_zip,
@@ -73,6 +76,19 @@ class HkoParsingTests(unittest.TestCase):
         self.assertEqual(len(observations), 1)
         self.assertEqual(observations[0].metric, "pressure_hpa")
         self.assertEqual(observations[0].value, 996.1)
+
+    def test_load_dotenv_sets_missing_values(self):
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8") as env_file:
+            env_file.write("HKO_TEST_ENV=value_from_file\n")
+            env_file.flush()
+
+            os.environ.pop("HKO_TEST_ENV", None)
+            load_dotenv(env_file.name)
+            self.assertEqual(os.environ["HKO_TEST_ENV"], "value_from_file")
+
+            os.environ["HKO_TEST_ENV"] = "existing_value"
+            load_dotenv(env_file.name)
+            self.assertEqual(os.environ["HKO_TEST_ENV"], "existing_value")
 
 
 if __name__ == "__main__":

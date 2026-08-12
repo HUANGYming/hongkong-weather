@@ -47,8 +47,9 @@ DEFAULT_ARGS = {
 def uv_command(command: str) -> str:
     return (
         "set -euo pipefail; "
-        ': "${DATABASE_URL:?DATABASE_URL is required}"; '
         f"cd {PROJECT_DIR!r}; "
+        "if [ -f .env ]; then set -a; . ./.env; set +a; fi; "
+        ': "${DATABASE_URL:?DATABASE_URL is required}"; '
         f"uv run python {command}"
     )
 

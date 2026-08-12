@@ -26,21 +26,20 @@ Every Airflow worker must have:
 ```text
 uv
 git checkout of this repo
-DATABASE_URL environment variable
-HKO_DB_SCHEMA environment variable when writing outside `public`
+project `.env` file or equivalent Airflow environment variables
 ```
 
-Recommended environment variables:
+Recommended `.env` values:
 
-```bash
-export DATABASE_URL="postgresql://user:password@host:5432/dbname"
-export HKO_DB_SCHEMA="generic_sma_ai_shared"
-export HKO_PROJECT_DIR="/opt/llm/hongkong-weather"
-export HKO_ARCHIVE_LOOKBACK_DAYS=14
-export HKO_RAW_RETENTION_DAYS=60
+```dotenv
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+HKO_DB_SCHEMA=generic_sma_ai_shared
+HKO_PROJECT_DIR=/opt/llm/hongkong-weather
+HKO_ARCHIVE_LOOKBACK_DAYS=14
+HKO_RAW_RETENTION_DAYS=60
 ```
 
-`HKO_PROJECT_DIR` is optional if the `dags/` folder lives inside this repository. Set it explicitly in production.
+`HKO_PROJECT_DIR` is optional if the `dags/` folder lives inside this repository. Set it explicitly in production if Airflow does not resolve the DAG symlink back to the repository.
 
 ## Quick Deploy For `/opt/llm/airflow/dags`
 
@@ -49,6 +48,8 @@ cd /opt/llm
 git clone https://github.com/HUANGYming/hongkong-weather.git
 cd /opt/llm/hongkong-weather
 uv sync --locked
+cp .env.example .env
+vi .env
 
 ln -s /opt/llm/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
 ```

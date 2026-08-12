@@ -15,19 +15,28 @@ uv sync --locked
 
 ## 2. Configure
 
-```bash
-export DB_HOST="codppybkdbd01.melco-resorts.com"
-export DB_PORT="5432"
-export DB_NAME="bigdata_prod"
-export DB_USER="1018195"
-export DB_PASS="<ask-owner-or-load-from-secret-manager>"
-export HKO_DB_SCHEMA="generic_sma_ai_shared"
+Create the local `.env` file:
 
-export DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+```bash
+cp .env.example .env
+vi .env
 mkdir -p logs
 ```
 
-Do not commit the real password. Set it in the shell, Airflow environment, or your secret manager.
+Set the real `DB_PASS` in `.env`, and update `DATABASE_URL` with the same password. Do not commit `.env`.
+
+For DEV ZONE, the values are:
+
+```text
+DB_HOST=codppybkdbd01.melco-resorts.com
+DB_PORT=5432
+DB_NAME=bigdata_prod
+DB_USER=1018195
+HKO_DB_SCHEMA=generic_sma_ai_shared
+HKO_PROJECT_DIR=/opt/llm/hongkong-weather
+```
+
+The Python scripts and Airflow tasks load `.env` automatically from the project root.
 
 ## 3. Run Offline Tests
 
