@@ -130,7 +130,7 @@ SELECT count(*), min(date), max(date)
 FROM fact_feature_date_hkweather_1day_daily_v1;
 
 SELECT count(*), min(obs_date_hk), max(obs_date_hk)
-FROM ods_feature_observation_hkweather_10min_realtime_v1;
+FROM fact_feature_observation_hkweather_10min_realtime_v1;
 
 SELECT
     date,
@@ -149,7 +149,7 @@ SELECT
     source,
     metric,
     value
-FROM ods_feature_observation_hkweather_10min_realtime_v1
+FROM fact_feature_observation_hkweather_10min_realtime_v1
 ORDER BY obs_time DESC
 LIMIT 20;
 ```
@@ -157,7 +157,7 @@ LIMIT 20;
 ## Notes
 
 - Business daily queries should use `fact_feature_date_hkweather_1day_daily_v1`.
-- Realtime queries should use `ods_feature_observation_hkweather_10min_realtime_v1`.
+- Realtime queries should use `fact_feature_observation_hkweather_10min_realtime_v1`.
 - Raw realtime observations are retained for 60 days by default.
 - Airflow should not run multiple active instances of the same DAG; each DAG sets `max_active_runs=1`.
 - Table names follow `[department]_[project]_[OK_entity]_[data_field]_[window_size]_[frequency]_[version]`.

@@ -15,7 +15,7 @@ The business-facing official daily table is:
 generic_sma_ai_shared.fact_feature_date_hkweather_1day_daily_v1
 ```
 
-Realtime observations are stored separately by observation/update time in `ods_feature_observation_hkweather_10min_realtime_v1`.
+Realtime observations are stored separately by observation/update time in `fact_feature_observation_hkweather_10min_realtime_v1`.
 
 ## Repository Layout
 
@@ -156,7 +156,7 @@ SELECT
     metric,
     value,
     unit
-FROM generic_sma_ai_shared.ods_feature_observation_hkweather_10min_realtime_v1
+FROM generic_sma_ai_shared.fact_feature_observation_hkweather_10min_realtime_v1
 ORDER BY obs_time DESC, source, metric
 LIMIT 20;
 "
@@ -166,7 +166,7 @@ LIMIT 20;
 
 ```text
 fact_feature_date_hkweather_1day_daily_v1                Official HKO D1/Daily Extract daily table
-ods_feature_observation_hkweather_10min_realtime_v1      Realtime/archive observations by obs_time
+fact_feature_observation_hkweather_10min_realtime_v1      Realtime/archive observations by obs_time
 meta_feature_run_hkweather_ingest_1run_event_v1          Ingest run log
 ```
 

@@ -67,7 +67,7 @@ RAINFALL_STATION_ID = "RF023"
 # Naming convention:
 # [department]_[project]_[OK_entity]_[data_field]_[window_size]_[frequency]_[version]
 OFFICIAL_DAILY_TABLE_NAME = "fact_feature_date_hkweather_1day_daily_v1"
-REALTIME_RAW_TABLE_NAME = "ods_feature_observation_hkweather_10min_realtime_v1"
+REALTIME_RAW_TABLE_NAME = "fact_feature_observation_hkweather_10min_realtime_v1"
 INGEST_RUN_TABLE_NAME = "meta_feature_run_hkweather_ingest_1run_event_v1"
 SCHEMA_LOCK_KEY = "hko_weather_schema_v1"
 SHORT_VARCHAR = "varchar(128)"

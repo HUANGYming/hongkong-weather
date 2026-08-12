@@ -61,12 +61,15 @@ WHERE table_schema = 'generic_sma_ai_shared'
       'fact_feature_date_hkweather_1day_daily_v1',
       'fact_feature_date_hkweather_official_1day_daily_v1',
       'fact_feature_date_hkweather_provisional_1day_daily_v1',
-      'ods_feature_observation_hkweather_10min_realtime_v1'
+      'ods_feature_observation_hkweather_10min_realtime_v1',
+      'fact_feature_observation_hkweather_10min_realtime_v1'
   )
 ORDER BY table_name;
 ```
 
 The new target `fact_feature_date_hkweather_1day_daily_v1` must be a base table. If it is still a view, the official loader will drop that view and recreate it as a table. If it is an old base table with missing columns, drop or rename that old table before rerunning.
+
+The realtime observation table is now `fact_feature_observation_hkweather_10min_realtime_v1`. If an older `ods_feature_observation_hkweather_10min_realtime_v1` table exists, keep it as backup or drop/rename it after confirming the new fact table is populated.
 
 ```bash
 uv run python update_hko_postgres.py --full-refresh
@@ -138,7 +141,7 @@ SELECT
     metric,
     value,
     unit
-FROM generic_sma_ai_shared.ods_feature_observation_hkweather_10min_realtime_v1
+FROM generic_sma_ai_shared.fact_feature_observation_hkweather_10min_realtime_v1
 ORDER BY obs_time DESC, source, metric
 LIMIT 20;
 ```
@@ -164,7 +167,7 @@ dags/hko_weather_airflow.py
 
 ```text
 fact_feature_date_hkweather_1day_daily_v1                Official HKO D1/Daily Extract daily table
-ods_feature_observation_hkweather_10min_realtime_v1      Realtime/archive observations by obs_time
+fact_feature_observation_hkweather_10min_realtime_v1      Realtime/archive observations by obs_time
 meta_feature_run_hkweather_ingest_1run_event_v1          Ingest run log
 ```
 
