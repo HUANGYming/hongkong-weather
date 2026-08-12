@@ -11,6 +11,7 @@ import zipfile
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
+from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
 
@@ -31,6 +32,49 @@ def load_dotenv(path: str | os.PathLike[str] = ".env") -> None:
 
 
 load_dotenv()
+
+
+def database_url_from_env() -> str | None:
+    if os.environ.get("DATABASE_URL"):
+        return os.environ["DATABASE_URL"]
+
+    required_keys = ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASS")
+    if not all(os.environ.get(key) for key in required_keys):
+        return None
+
+    host = os.environ["DB_HOST"]
+    port = os.environ.get("DB_PORT", "5432")
+    name = quote(os.environ["DB_NAME"], safe="")
+    user = quote(os.environ["DB_USER"], safe="")
+    password = quote(os.environ["DB_PASS"], safe="")
+    return f"postgresql://{user}:{password}@{host}:{port}/{name}"
+
+
+def connect_database(database_url: str):
+    driver = os.environ.get("HKO_DB_DRIVER", "").lower()
+    if driver in {"psycopg2", "psycopg2-binary"}:
+        try:
+            import psycopg2
+        except ImportError as exc:
+            raise SystemExit("Missing dependency: uv sync --locked") from exc
+        return psycopg2.connect(database_url)
+
+    if driver in {"psycopg", "psycopg3"}:
+        try:
+            import psycopg
+        except ImportError as exc:
+            raise SystemExit("Missing dependency: uv sync --locked") from exc
+        return psycopg.connect(database_url)
+
+    try:
+        import psycopg
+    except ImportError:
+        try:
+            import psycopg2
+        except ImportError as exc:
+            raise SystemExit("Missing dependency: uv sync --locked") from exc
+        return psycopg2.connect(database_url)
+    return psycopg.connect(database_url)
 
 
 HK_TZ = ZoneInfo("Asia/Hong_Kong")

@@ -22,6 +22,8 @@ from hko_common import (
     STATION_CODE,
     STATION_NAME,
     Observation,
+    connect_database,
+    database_url_from_env,
     ensure_database_schema,
     hk_today,
     parse_hourly_rainfall_json,
@@ -35,11 +37,7 @@ ARCHIVE_GET_URL = "https://app.data.gov.hk/v1/historical-archive/get-file"
 
 
 def connect(database_url: str):
-    try:
-        import psycopg
-    except ImportError as exc:
-        raise SystemExit("Missing dependency: uv sync --locked") from exc
-    return psycopg.connect(database_url)
+    return connect_database(database_url)
 
 
 def fetch_text(url: str, timeout: int = 60) -> str:
@@ -402,7 +400,7 @@ def parse_iso_date(value: str) -> date:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Upsert HKO realtime/provisional data into PostgreSQL.")
-    parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL"))
+    parser.add_argument("--database-url", default=database_url_from_env())
     parser.add_argument("--mode", choices=["current", "archive", "both", "recompute-only"], default="current")
     parser.add_argument("--start-date", type=parse_iso_date, help="Archive/recompute start date.")
     parser.add_argument("--end-date", type=parse_iso_date, help="Archive/recompute end date.")

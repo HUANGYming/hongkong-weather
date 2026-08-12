@@ -20,6 +20,8 @@ from hko_common import (
     STATION_CODE,
     STATION_NAME,
     build_official_wide_rows,
+    connect_database,
+    database_url_from_env,
     ensure_database_schema,
     hk_today,
     official_insert_columns,
@@ -32,11 +34,7 @@ DEFAULT_START_DATE = date(2020, 1, 1)
 
 
 def connect(database_url: str):
-    try:
-        import psycopg
-    except ImportError as exc:
-        raise SystemExit("Missing dependency: uv sync --locked") from exc
-    return psycopg.connect(database_url)
+    return connect_database(database_url)
 
 
 def d1_url(element_code: str, year: int) -> str:
@@ -197,7 +195,7 @@ def parse_iso_date(value: str) -> date:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Upsert official HKO D1 daily data into PostgreSQL.")
-    parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL"))
+    parser.add_argument("--database-url", default=database_url_from_env())
     parser.add_argument("--start-date", type=parse_iso_date, default=DEFAULT_START_DATE)
     parser.add_argument("--end-date", type=parse_iso_date, default=hk_today())
     parser.add_argument("--lookback-days", type=int, default=45)

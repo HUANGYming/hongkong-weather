@@ -23,7 +23,7 @@ vi .env
 mkdir -p logs
 ```
 
-Set the real `DB_PASS` in `.env`, and update `DATABASE_URL` with the same password. Do not commit `.env`.
+Set the real `DB_PASS` in `.env`. Do not commit `.env`.
 
 For DEV ZONE, the values are:
 
@@ -32,6 +32,7 @@ DB_HOST=codppybkdbd01.melco-resorts.com
 DB_PORT=5432
 DB_NAME=bigdata_prod
 DB_USER=1018195
+HKO_DB_DRIVER=psycopg2
 HKO_DB_SCHEMA=generic_sma_ai_shared
 HKO_PROJECT_DIR=/opt/llm/hongkong-weather
 ```

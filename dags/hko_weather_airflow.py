@@ -49,7 +49,9 @@ def uv_command(command: str) -> str:
         "set -euo pipefail; "
         f"cd {PROJECT_DIR!r}; "
         "if [ -f .env ]; then set -a; . ./.env; set +a; fi; "
-        ': "${DATABASE_URL:?DATABASE_URL is required}"; '
+        'if [ -z "${DATABASE_URL:-}" ] && [ -z "${DB_HOST:-}" ]; then '
+        'echo "DATABASE_URL or DB_* settings are required"; exit 1; '
+        "fi; "
         f"uv run python {command}"
     )
 

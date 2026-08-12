@@ -9,6 +9,7 @@ from datetime import date
 from hko_common import (
     HKO_ELEMENTS,
     build_official_wide_rows,
+    database_url_from_env,
     load_dotenv,
     parse_d1_csv_text,
     parse_hourly_rainfall_json,
@@ -89,6 +90,31 @@ class HkoParsingTests(unittest.TestCase):
             os.environ["HKO_TEST_ENV"] = "existing_value"
             load_dotenv(env_file.name)
             self.assertEqual(os.environ["HKO_TEST_ENV"], "existing_value")
+
+    def test_database_url_from_db_env(self):
+        saved = {key: os.environ.get(key) for key in ("DATABASE_URL", "DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASS")}
+        try:
+            for key in saved:
+                os.environ.pop(key, None)
+            os.environ.update(
+                {
+                    "DB_HOST": "db.example.com",
+                    "DB_PORT": "5432",
+                    "DB_NAME": "bigdata_prod",
+                    "DB_USER": "1018195",
+                    "DB_PASS": "p@ss/word",
+                }
+            )
+            self.assertEqual(
+                database_url_from_env(),
+                "postgresql://1018195:p%40ss%2Fword@db.example.com:5432/bigdata_prod",
+            )
+        finally:
+            for key, value in saved.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
 
 
 if __name__ == "__main__":

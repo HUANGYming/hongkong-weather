@@ -4,17 +4,18 @@
 from __future__ import annotations
 
 import argparse
-import os
 
-from hko_common import OFFICIAL_DAILY_TABLE, PROVISIONAL_DAILY_TABLE, REALTIME_RAW_TABLE
+from hko_common import (
+    OFFICIAL_DAILY_TABLE,
+    PROVISIONAL_DAILY_TABLE,
+    REALTIME_RAW_TABLE,
+    connect_database,
+    database_url_from_env,
+)
 
 
 def connect(database_url: str):
-    try:
-        import psycopg
-    except ImportError as exc:
-        raise SystemExit("Missing dependency: uv sync --locked") from exc
-    return psycopg.connect(database_url)
+    return connect_database(database_url)
 
 
 def cleanup(conn, retention_days: int, prune_official_covered_provisional: bool) -> tuple[int, int]:
@@ -46,7 +47,7 @@ def cleanup(conn, retention_days: int, prune_official_covered_provisional: bool)
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Delete old HKO realtime raw observations.")
-    parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL"))
+    parser.add_argument("--database-url", default=database_url_from_env())
     parser.add_argument("--retention-days", type=int, default=60)
     parser.add_argument(
         "--keep-official-covered-provisional",
