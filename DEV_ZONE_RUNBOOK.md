@@ -34,6 +34,7 @@ DB_NAME=bigdata_prod
 DB_USER=1018195
 HKO_DB_DRIVER=psycopg2
 HKO_DB_SCHEMA=generic_sma_ai_shared
+HKO_CREATE_SCHEMA=false
 HKO_PROJECT_DIR=/opt/llm/hongkong-weather
 ```
 

@@ -93,6 +93,7 @@ INGEST_RUN_TABLE = "meta_feature_run_hkweather_ingest_1run_event_v1"
 SCHEMA_LOCK_KEY = "hko_weather_schema_v1"
 
 DB_SCHEMA = os.environ.get("HKO_DB_SCHEMA") or os.environ.get("DB_SCHEMA") or os.environ.get("SCHEMA")
+CREATE_SCHEMA = os.environ.get("HKO_CREATE_SCHEMA", "true").lower() not in {"0", "false", "no"}
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
@@ -111,6 +112,8 @@ def qualify_relation(name: str) -> str:
 
 def ensure_database_schema(cur) -> None:
     if DB_SCHEMA:
+        if not CREATE_SCHEMA:
+            return
         cur.execute("SELECT 1 FROM information_schema.schemata WHERE schema_name = %s", (DB_SCHEMA,))
         if cur.fetchone():
             return
