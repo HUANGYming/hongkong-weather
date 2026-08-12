@@ -13,6 +13,7 @@ from urllib.parse import urlencode
 import requests
 
 from hko_common import (
+    DB_SCHEMA,
     HKO_ELEMENTS,
     INGEST_RUN_TABLE,
     LONG_VARCHAR,
@@ -112,6 +113,7 @@ def create_schema(conn) -> None:
                 )
                 """
             )
+            validate_official_table_columns(cur)
         conn.commit()
     except Exception:
         conn.rollback()
@@ -120,6 +122,37 @@ def create_schema(conn) -> None:
         with conn.cursor() as cur:
             cur.execute("SELECT pg_advisory_unlock(hashtext(%s))", (SCHEMA_LOCK_KEY,))
         conn.commit()
+
+
+def validate_official_table_columns(cur) -> None:
+    required_columns = set(official_insert_columns()) | {"source", "updated_at"}
+    if DB_SCHEMA:
+        cur.execute(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = %s
+              AND table_name = %s
+            """,
+            (DB_SCHEMA, OFFICIAL_DAILY_TABLE_NAME),
+        )
+    else:
+        cur.execute(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = %s
+            """,
+            (OFFICIAL_DAILY_TABLE_NAME,),
+        )
+    existing_columns = {row[0] for row in cur.fetchall()}
+    missing_columns = sorted(required_columns - existing_columns)
+    if missing_columns:
+        raise RuntimeError(
+            f"Existing {OFFICIAL_DAILY_TABLE_NAME} table is missing columns: "
+            f"{', '.join(missing_columns)}. Drop/recreate the old object before rerunning."
+        )
 
 
 def latest_official_date(conn) -> date | None:

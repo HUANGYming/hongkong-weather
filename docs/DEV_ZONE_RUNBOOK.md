@@ -51,6 +51,23 @@ uv run python -m unittest discover -s tests -v
 
 This loads official HKO historical daily data from `2020-01-01` onward. The loader uses D1 plus Daily Extract so recent published months can arrive before the D1 API catches up.
 
+If you deployed an older version, check the old objects first:
+
+```sql
+SELECT table_schema, table_name, table_type
+FROM information_schema.tables
+WHERE table_schema = 'generic_sma_ai_shared'
+  AND table_name IN (
+      'fact_feature_date_hkweather_1day_daily_v1',
+      'fact_feature_date_hkweather_official_1day_daily_v1',
+      'fact_feature_date_hkweather_provisional_1day_daily_v1',
+      'ods_feature_observation_hkweather_10min_realtime_v1'
+  )
+ORDER BY table_name;
+```
+
+The new target `fact_feature_date_hkweather_1day_daily_v1` must be a base table. If it is still a view, the official loader will drop that view and recreate it as a table. If it is an old base table with missing columns, drop or rename that old table before rerunning.
+
 ```bash
 uv run python update_hko_postgres.py --full-refresh
 ```
