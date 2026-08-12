@@ -111,6 +111,9 @@ def qualify_relation(name: str) -> str:
 
 def ensure_database_schema(cur) -> None:
     if DB_SCHEMA:
+        cur.execute("SELECT 1 FROM information_schema.schemata WHERE schema_name = %s", (DB_SCHEMA,))
+        if cur.fetchone():
+            return
         cur.execute(f"CREATE SCHEMA IF NOT EXISTS {quote_identifier(DB_SCHEMA)}")
 
 
