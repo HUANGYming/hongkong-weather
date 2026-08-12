@@ -14,11 +14,13 @@ import requests
 from hko_common import (
     HOURLY_RAINFALL_URL,
     LATEST_DAILY_VIEW,
+    MEDIUM_VARCHAR,
     OFFICIAL_DAILY_TABLE,
     PROVISIONAL_DAILY_TABLE,
     REALTIME_CSV_RESOURCES,
     REALTIME_RAW_TABLE,
     SCHEMA_LOCK_KEY,
+    SHORT_VARCHAR,
     STATION_CODE,
     STATION_NAME,
     Observation,
@@ -68,39 +70,39 @@ def create_schema(conn) -> None:
                 f"""
                 CREATE TABLE IF NOT EXISTS {OFFICIAL_DAILY_TABLE} (
                 date date PRIMARY KEY,
-                station_code text NOT NULL DEFAULT 'HKO',
-                station_name text NOT NULL DEFAULT 'Hong Kong Observatory',
+                station_code {SHORT_VARCHAR} NOT NULL DEFAULT 'HKO',
+                station_name {SHORT_VARCHAR} NOT NULL DEFAULT 'Hong Kong Observatory',
                 mslp_hpa double precision,
-                mslp_hpa_raw text,
-                mslp_hpa_completeness text,
+                mslp_hpa_raw {MEDIUM_VARCHAR},
+                mslp_hpa_completeness {SHORT_VARCHAR},
                 mean_temp_c double precision,
-                mean_temp_c_raw text,
-                mean_temp_c_completeness text,
+                mean_temp_c_raw {MEDIUM_VARCHAR},
+                mean_temp_c_completeness {SHORT_VARCHAR},
                 mean_dew_point_c double precision,
-                mean_dew_point_c_raw text,
-                mean_dew_point_c_completeness text,
+                mean_dew_point_c_raw {MEDIUM_VARCHAR},
+                mean_dew_point_c_completeness {SHORT_VARCHAR},
                 mean_wet_bulb_c double precision,
-                mean_wet_bulb_c_raw text,
-                mean_wet_bulb_c_completeness text,
+                mean_wet_bulb_c_raw {MEDIUM_VARCHAR},
+                mean_wet_bulb_c_completeness {SHORT_VARCHAR},
                 mean_relative_humidity_pct double precision,
-                mean_relative_humidity_pct_raw text,
-                mean_relative_humidity_pct_completeness text,
+                mean_relative_humidity_pct_raw {MEDIUM_VARCHAR},
+                mean_relative_humidity_pct_completeness {SHORT_VARCHAR},
                 mean_cloud_amount_pct double precision,
-                mean_cloud_amount_pct_raw text,
-                mean_cloud_amount_pct_completeness text,
+                mean_cloud_amount_pct_raw {MEDIUM_VARCHAR},
+                mean_cloud_amount_pct_completeness {SHORT_VARCHAR},
                 total_rainfall_mm double precision,
-                total_rainfall_mm_raw text,
-                total_rainfall_mm_completeness text,
+                total_rainfall_mm_raw {MEDIUM_VARCHAR},
+                total_rainfall_mm_completeness {SHORT_VARCHAR},
                 max_temp_c double precision,
-                max_temp_c_raw text,
-                max_temp_c_completeness text,
+                max_temp_c_raw {MEDIUM_VARCHAR},
+                max_temp_c_completeness {SHORT_VARCHAR},
                 min_temp_c double precision,
-                min_temp_c_raw text,
-                min_temp_c_completeness text,
+                min_temp_c_raw {MEDIUM_VARCHAR},
+                min_temp_c_completeness {SHORT_VARCHAR},
                 grass_min_temp_c double precision,
-                grass_min_temp_c_raw text,
-                grass_min_temp_c_completeness text,
-                source text NOT NULL DEFAULT 'hko_d1',
+                grass_min_temp_c_raw {MEDIUM_VARCHAR},
+                grass_min_temp_c_completeness {SHORT_VARCHAR},
+                source {SHORT_VARCHAR} NOT NULL DEFAULT 'hko_d1',
                 updated_at timestamptz NOT NULL DEFAULT now()
                 )
                 """
@@ -110,13 +112,13 @@ def create_schema(conn) -> None:
                 CREATE TABLE IF NOT EXISTS {REALTIME_RAW_TABLE} (
                 obs_time timestamptz NOT NULL,
                 obs_date_hk date NOT NULL,
-                station_code text NOT NULL DEFAULT 'HKO',
-                station_name text NOT NULL DEFAULT 'Hong Kong Observatory',
-                source text NOT NULL,
-                metric text NOT NULL,
+                station_code {SHORT_VARCHAR} NOT NULL DEFAULT 'HKO',
+                station_name {SHORT_VARCHAR} NOT NULL DEFAULT 'Hong Kong Observatory',
+                source {SHORT_VARCHAR} NOT NULL,
+                metric {SHORT_VARCHAR} NOT NULL,
                 value double precision,
-                raw_value text,
-                unit text,
+                raw_value {MEDIUM_VARCHAR},
+                unit {SHORT_VARCHAR},
                 fetched_at timestamptz NOT NULL DEFAULT now(),
                 PRIMARY KEY (obs_time, source, metric, station_code)
                 )
@@ -132,8 +134,8 @@ def create_schema(conn) -> None:
                 f"""
                 CREATE TABLE IF NOT EXISTS {PROVISIONAL_DAILY_TABLE} (
                 date date PRIMARY KEY,
-                station_code text NOT NULL DEFAULT 'HKO',
-                station_name text NOT NULL DEFAULT 'Hong Kong Observatory',
+                station_code {SHORT_VARCHAR} NOT NULL DEFAULT 'HKO',
+                station_name {SHORT_VARCHAR} NOT NULL DEFAULT 'Hong Kong Observatory',
                 mslp_hpa double precision,
                 mean_temp_c double precision,
                 mean_relative_humidity_pct double precision,
@@ -144,8 +146,8 @@ def create_schema(conn) -> None:
                 sample_count_humidity integer,
                 sample_count_pressure integer,
                 sample_count_rainfall integer,
-                data_status text NOT NULL DEFAULT 'provisional',
-                source text NOT NULL DEFAULT 'hko_realtime',
+                data_status {SHORT_VARCHAR} NOT NULL DEFAULT 'provisional',
+                source {SHORT_VARCHAR} NOT NULL DEFAULT 'hko_realtime',
                 first_obs_time timestamptz,
                 last_obs_time timestamptz,
                 updated_at timestamptz NOT NULL DEFAULT now()
@@ -154,11 +156,16 @@ def create_schema(conn) -> None:
             )
             cur.execute(
                 f"""
+                DROP VIEW IF EXISTS {LATEST_DAILY_VIEW}
+                """
+            )
+            cur.execute(
+                f"""
                 CREATE OR REPLACE VIEW {LATEST_DAILY_VIEW} AS
                 SELECT
                     COALESCE(o.date, p.date) AS date,
-                    'HKO' AS station_code,
-                    'Hong Kong Observatory' AS station_name,
+                    CAST('HKO' AS {SHORT_VARCHAR}) AS station_code,
+                    CAST('Hong Kong Observatory' AS {SHORT_VARCHAR}) AS station_name,
                     COALESCE(o.mslp_hpa, p.mslp_hpa) AS mslp_hpa,
                     COALESCE(o.mean_temp_c, p.mean_temp_c) AS mean_temp_c,
                     o.mean_dew_point_c,
@@ -169,7 +176,10 @@ def create_schema(conn) -> None:
                     COALESCE(o.max_temp_c, p.max_temp_c) AS max_temp_c,
                     COALESCE(o.min_temp_c, p.min_temp_c) AS min_temp_c,
                     o.grass_min_temp_c,
-                    CASE WHEN o.date IS NOT NULL THEN 'official' ELSE 'provisional' END AS data_status,
+                    CAST(
+                        CASE WHEN o.date IS NOT NULL THEN 'official' ELSE 'provisional' END
+                        AS {SHORT_VARCHAR}
+                    ) AS data_status,
                     COALESCE(o.source, p.source) AS source,
                     GREATEST(
                         COALESCE(o.updated_at, '-infinity'::timestamptz),
@@ -180,6 +190,9 @@ def create_schema(conn) -> None:
                 """
             )
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         with conn.cursor() as cur:
             cur.execute("SELECT pg_advisory_unlock(hashtext(%s))", (SCHEMA_LOCK_KEY,))

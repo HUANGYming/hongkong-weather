@@ -15,8 +15,11 @@ import requests
 from hko_common import (
     HKO_ELEMENTS,
     INGEST_RUN_TABLE,
+    LONG_VARCHAR,
+    MEDIUM_VARCHAR,
     OFFICIAL_DAILY_TABLE,
     SCHEMA_LOCK_KEY,
+    SHORT_VARCHAR,
     STATION_CODE,
     STATION_NAME,
     build_official_wide_rows,
@@ -59,8 +62,8 @@ def create_schema(conn) -> None:
             columns_sql.extend(
                 [
                     f"{element.column} double precision",
-                    f"{element.column}_raw text",
-                    f"{element.column}_completeness text",
+                    f"{element.column}_raw {MEDIUM_VARCHAR}",
+                    f"{element.column}_completeness {SHORT_VARCHAR}",
                 ]
             )
 
@@ -70,10 +73,10 @@ def create_schema(conn) -> None:
                 f"""
                 CREATE TABLE IF NOT EXISTS {OFFICIAL_DAILY_TABLE} (
                     date date PRIMARY KEY,
-                    station_code text NOT NULL DEFAULT 'HKO',
-                    station_name text NOT NULL DEFAULT 'Hong Kong Observatory',
+                    station_code {SHORT_VARCHAR} NOT NULL DEFAULT 'HKO',
+                    station_name {SHORT_VARCHAR} NOT NULL DEFAULT 'Hong Kong Observatory',
                     {", ".join(columns_sql)},
-                    source text NOT NULL DEFAULT 'hko_d1',
+                    source {SHORT_VARCHAR} NOT NULL DEFAULT 'hko_d1',
                     updated_at timestamptz NOT NULL DEFAULT now()
                 )
                 """
@@ -87,20 +90,23 @@ def create_schema(conn) -> None:
             cur.execute(
                 f"""
                 CREATE TABLE IF NOT EXISTS {INGEST_RUN_TABLE} (
-                    id bigserial PRIMARY KEY,
+                    id bigint PRIMARY KEY,
                     started_at timestamptz NOT NULL DEFAULT now(),
                     finished_at timestamptz,
-                    status text NOT NULL,
-                    job_name text NOT NULL,
-                    years text,
+                    status {SHORT_VARCHAR} NOT NULL,
+                    job_name {SHORT_VARCHAR} NOT NULL,
+                    years {MEDIUM_VARCHAR},
                     rows_upserted integer,
                     min_date date,
                     max_date date,
-                    error text
+                    error {LONG_VARCHAR}
                 )
                 """
             )
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         with conn.cursor() as cur:
             cur.execute("SELECT pg_advisory_unlock(hashtext(%s))", (SCHEMA_LOCK_KEY,))
@@ -150,16 +156,15 @@ def upsert_official_rows(conn, rows: list[dict[str, object]]) -> int:
 
 
 def insert_run(conn, years: list[int]) -> int:
+    run_id = time.time_ns()
     with conn.cursor() as cur:
         cur.execute(
             f"""
-            INSERT INTO {INGEST_RUN_TABLE} (status, job_name, years)
-            VALUES ('running', 'official_d1', %s)
-            RETURNING id
+            INSERT INTO {INGEST_RUN_TABLE} (id, status, job_name, years)
+            VALUES (%s, 'running', 'official_d1', %s)
             """,
-            (",".join(str(year) for year in years),),
+            (run_id, ",".join(str(year) for year in years)),
         )
-        run_id = cur.fetchone()[0]
     conn.commit()
     return run_id
 

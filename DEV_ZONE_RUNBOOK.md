@@ -39,6 +39,7 @@ HKO_PROJECT_DIR=/opt/llm/hongkong-weather
 ```
 
 The Python scripts and Airflow tasks load `.env` automatically from the project root.
+Yellowbrick does not support PostgreSQL `TEXT` columns, so the project DDL uses bounded `varchar` columns.
 
 ## 3. Run Offline Tests
 

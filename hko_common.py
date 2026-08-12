@@ -91,6 +91,9 @@ LATEST_DAILY_VIEW = "fact_feature_date_hkweather_1day_daily_v1"
 REALTIME_RAW_TABLE = "ods_feature_observation_hkweather_10min_realtime_v1"
 INGEST_RUN_TABLE = "meta_feature_run_hkweather_ingest_1run_event_v1"
 SCHEMA_LOCK_KEY = "hko_weather_schema_v1"
+SHORT_VARCHAR = "varchar(128)"
+MEDIUM_VARCHAR = "varchar(512)"
+LONG_VARCHAR = "varchar(64000)"
 
 DB_SCHEMA = os.environ.get("HKO_DB_SCHEMA") or os.environ.get("DB_SCHEMA") or os.environ.get("SCHEMA")
 CREATE_SCHEMA = os.environ.get("HKO_CREATE_SCHEMA", "true").lower() not in {"0", "false", "no"}
