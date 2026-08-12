@@ -4,11 +4,12 @@ import os
 import tempfile
 import unittest
 import zipfile
-from datetime import date
+from datetime import date, datetime
 from unittest import mock
 
 from hko_common import (
     HKO_ELEMENTS,
+    Observation,
     build_official_wide_rows,
     database_url_from_env,
     load_dotenv,
@@ -155,6 +156,55 @@ class HkoParsingTests(unittest.TestCase):
         self.assertEqual(captured["start_date"], date(2026, 7, 1))
         self.assertEqual(captured["end_date"], date(2026, 8, 11))
         self.assertTrue(captured["closed"])
+
+    def test_replace_archive_observations_deletes_by_metric_day_group(self):
+        calls = []
+
+        class DummyCursor:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+            def executemany(self, sql, values):
+                calls.append((sql, list(values)))
+
+        class DummyConnection:
+            def cursor(self):
+                return DummyCursor()
+
+            def commit(self):
+                calls.append(("commit", []))
+
+        observations = [
+            Observation(
+                obs_time=datetime(2026, 8, 11, 10, 0),
+                obs_date_hk=date(2026, 8, 11),
+                source="latest_1min_pressure",
+                metric="pressure_hpa",
+                value=1001.1,
+                raw_value="1001.1",
+                unit="hPa",
+            ),
+            Observation(
+                obs_time=datetime(2026, 8, 11, 10, 10),
+                obs_date_hk=date(2026, 8, 11),
+                source="latest_1min_pressure",
+                metric="pressure_hpa",
+                value=1001.3,
+                raw_value="1001.3",
+                unit="hPa",
+            ),
+        ]
+
+        inserted, groups = realtime.replace_archive_observations(DummyConnection(), observations)
+
+        self.assertEqual(inserted, 2)
+        self.assertEqual(groups, 1)
+        self.assertEqual(len(calls[0][1]), 1)
+        self.assertEqual(calls[0][1][0], (date(2026, 8, 11), "latest_1min_pressure", "pressure_hpa", "HKO"))
+        self.assertEqual(len(calls[1][1]), 2)
 
 
 if __name__ == "__main__":

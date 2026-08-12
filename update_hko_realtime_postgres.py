@@ -197,21 +197,49 @@ def upsert_observations(conn, observations: list[Observation]) -> int:
     if not observations:
         return 0
 
-    sql = f"""
-        INSERT INTO {REALTIME_RAW_TABLE} (
-            obs_time,
-            obs_date_hk,
-            station_code,
-            station_name,
-            source,
-            metric,
-            value,
-            raw_value,
-            unit
+    deduped = dedupe_observation_rows(observations)
+    values = list(deduped.values())
+    with conn.cursor() as cur:
+        cur.executemany(
+            f"""
+            DELETE FROM {REALTIME_RAW_TABLE}
+            WHERE obs_time = %s
+              AND source = %s
+              AND metric = %s
+              AND station_code = %s
+            """,
+            list(deduped.keys()),
         )
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-    """
-    deduped = {
+        insert_observation_rows(cur, values)
+    conn.commit()
+    return len(values)
+
+
+def replace_archive_observations(conn, observations: list[Observation]) -> tuple[int, int]:
+    if not observations:
+        return 0, 0
+
+    deduped = dedupe_observation_rows(observations)
+    values = list(deduped.values())
+    delete_keys = sorted({(row[1], row[4], row[5], row[2]) for row in values})
+    with conn.cursor() as cur:
+        cur.executemany(
+            f"""
+            DELETE FROM {REALTIME_RAW_TABLE}
+            WHERE obs_date_hk = %s
+              AND source = %s
+              AND metric = %s
+              AND station_code = %s
+            """,
+            delete_keys,
+        )
+        insert_observation_rows(cur, values)
+    conn.commit()
+    return len(values), len(delete_keys)
+
+
+def dedupe_observation_rows(observations: list[Observation]) -> dict[tuple[object, str, str, str], tuple[object, ...]]:
+    return {
         (obs.obs_time, obs.source, obs.metric, STATION_CODE): (
             obs.obs_time,
             obs.obs_date_hk,
@@ -225,21 +253,26 @@ def upsert_observations(conn, observations: list[Observation]) -> int:
         )
         for obs in observations
     }
-    values = list(deduped.values())
-    with conn.cursor() as cur:
-        cur.executemany(
-            f"""
-            DELETE FROM {REALTIME_RAW_TABLE}
-            WHERE obs_time = %s
-              AND source = %s
-              AND metric = %s
-              AND station_code = %s
-            """,
-            list(deduped.keys()),
+
+
+def insert_observation_rows(cur, values: list[tuple[object, ...]]) -> None:
+    cur.executemany(
+        f"""
+        INSERT INTO {REALTIME_RAW_TABLE} (
+            obs_time,
+            obs_date_hk,
+            station_code,
+            station_name,
+            source,
+            metric,
+            value,
+            raw_value,
+            unit
         )
-        cur.executemany(sql, values)
-    conn.commit()
-    return len(values)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """,
+        values,
+    )
 
 
 def recompute_provisional(conn, dates: set[date]) -> int:
@@ -446,18 +479,26 @@ def main() -> int:
     conn = connect(args.database_url)
     try:
         create_schema(conn)
-        observations: list[Observation] = []
+        current_observations: list[Observation] = []
+        archive_observations: list[Observation] = []
         if args.mode in {"current", "both"}:
-            observations.extend(fetch_current_observations(args.include_rainfall))
+            current_observations = fetch_current_observations(args.include_rainfall)
         if args.mode in {"archive", "both"}:
-            observations.extend(fetch_archive_observations(start_date, end_date))
+            archive_observations = fetch_archive_observations(start_date, end_date)
 
-        affected_dates = {obs.obs_date_hk for obs in observations}
         if args.mode == "recompute-only":
             affected_dates = {start_date + timedelta(days=offset) for offset in range((end_date - start_date).days + 1)}
         else:
-            upserted = upsert_observations(conn, observations)
-            print(f"Upserted {upserted:,} realtime observations", file=sys.stderr)
+            affected_dates = {obs.obs_date_hk for obs in current_observations + archive_observations}
+            if archive_observations:
+                replaced, groups = replace_archive_observations(conn, archive_observations)
+                print(
+                    f"Replaced {replaced:,} archive observations across {groups:,} date/source/metric groups",
+                    file=sys.stderr,
+                )
+            if current_observations:
+                upserted = upsert_observations(conn, current_observations)
+                print(f"Upserted {upserted:,} current observations", file=sys.stderr)
 
         recomputed = recompute_provisional(conn, affected_dates)
         print(f"Recomputed {recomputed:,} provisional daily rows", file=sys.stderr)
