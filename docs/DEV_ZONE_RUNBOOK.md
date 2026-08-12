@@ -47,15 +47,15 @@ Yellowbrick tables can allow duplicate rows, so refresh writes use `DELETE` plus
 uv run python -m unittest discover -s tests -v
 ```
 
-## 4. Load Official HKO D1 Data
+## 4. Load Official HKO Daily Data
 
-This loads official monthly historical daily data from `2020-01-01` onward.
+This loads official HKO historical daily data from `2020-01-01` onward. The loader uses D1 plus Daily Extract so recent published months can arrive before the D1 API catches up.
 
 ```bash
 uv run python update_hko_postgres.py --full-refresh
 ```
 
-Expected official data currently lags behind realtime data because HKO D1 is monthly.
+Expected official data can still lag by roughly one day because Daily Extract is published after observations are processed.
 
 ## 5. Backfill Missing Provisional Days
 
@@ -147,7 +147,7 @@ dags/hko_weather_airflow.py
 
 ```text
 fact_feature_date_hkweather_1day_daily_v1                Official-first daily wide view for business queries
-fact_feature_date_hkweather_official_1day_daily_v1       Official monthly HKO D1 daily rows
+fact_feature_date_hkweather_official_1day_daily_v1       Official HKO D1/Daily Extract daily rows
 fact_feature_date_hkweather_provisional_1day_daily_v1    Provisional daily aggregates
 ods_feature_observation_hkweather_10min_realtime_v1      Raw realtime/archive snapshots
 meta_feature_run_hkweather_ingest_1run_event_v1          Ingest run log

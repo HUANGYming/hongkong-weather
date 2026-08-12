@@ -15,7 +15,7 @@ The business-facing object is:
 generic_sma_ai_shared.fact_feature_date_hkweather_1day_daily_v1
 ```
 
-It is an official-first daily wide view: official HKO D1 rows are preferred, and provisional realtime daily aggregates fill the latest gap before official monthly data is published.
+It is an official-first daily wide view: official HKO D1/Daily Extract rows are preferred, and provisional realtime daily aggregates fill the latest gap before official daily data is published.
 
 ## Repository Layout
 
@@ -96,7 +96,7 @@ Smoke test realtime ingestion:
 uv run python update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 
-Load official HKO D1 data from `2020-01-01` onward:
+Load official HKO daily data from `2020-01-01` onward. This uses HKO D1 plus Daily Extract so recent published months can arrive before the D1 API catches up:
 
 ```bash
 uv run python update_hko_postgres.py --full-refresh
@@ -150,7 +150,7 @@ LIMIT 20;
 
 ```text
 fact_feature_date_hkweather_1day_daily_v1                Official-first daily wide view for business queries
-fact_feature_date_hkweather_official_1day_daily_v1       Official monthly HKO D1 daily rows
+fact_feature_date_hkweather_official_1day_daily_v1       Official HKO D1/Daily Extract daily rows
 fact_feature_date_hkweather_provisional_1day_daily_v1    Provisional daily aggregates
 ods_feature_observation_hkweather_10min_realtime_v1      Raw realtime/archive snapshots
 meta_feature_run_hkweather_ingest_1run_event_v1          Ingest run log

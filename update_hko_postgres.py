@@ -29,10 +29,13 @@ from hko_common import (
     hk_today,
     official_insert_columns,
     parse_d1_csv_text,
+    parse_daily_extract_json_text,
 )
 
 
 D1_BASE_URL = "https://data.weather.gov.hk/weatherAPI/D1/caller.php"
+DAILY_EXTRACT_YEAR_URL = "https://www.hko.gov.hk/cis/dailyExtract/dailyExtract_{year}.xml"
+DAILY_EXTRACT_MONTH_URL = "https://www.hko.gov.hk/cis/dailyExtract/dailyExtract_{year}{month:02d}.xml"
 DEFAULT_START_DATE = date(2020, 1, 1)
 
 
@@ -50,6 +53,15 @@ def fetch_text(url: str, timeout: int = 60) -> str:
     response.encoding = "utf-8-sig"
     if response.text.startswith("File data not existed"):
         return ""
+    return response.text
+
+
+def fetch_optional_text(url: str, timeout: int = 60) -> str:
+    response = requests.get(url, timeout=timeout, headers={"User-Agent": "hko-postgres-updater/1.0"})
+    if response.status_code == 404:
+        return ""
+    response.raise_for_status()
+    response.encoding = "utf-8-sig"
     return response.text
 
 
@@ -124,6 +136,19 @@ def years_to_update(conn, start_date: date, end_date: date, lookback_days: int, 
         else:
             first_year = max(start_date, latest - timedelta(days=lookback_days)).year
     return list(range(first_year, end_date.year + 1))
+
+
+def recent_months(start_date: date, end_date: date, lookback_days: int) -> list[tuple[int, int]]:
+    month_start = max(start_date, end_date - timedelta(days=max(lookback_days, 75))).replace(day=1)
+    months: list[tuple[int, int]] = []
+    cursor = month_start
+    while cursor <= end_date:
+        months.append((cursor.year, cursor.month))
+        if cursor.month == 12:
+            cursor = date(cursor.year + 1, 1, 1)
+        else:
+            cursor = date(cursor.year, cursor.month + 1, 1)
+    return months
 
 
 def upsert_official_rows(conn, rows: list[dict[str, object]]) -> int:
@@ -223,6 +248,22 @@ def main() -> int:
                 if text:
                     long_rows.extend(parse_d1_csv_text(text, element))
                 time.sleep(args.sleep)
+
+        for year in years:
+            url = DAILY_EXTRACT_YEAR_URL.format(year=year)
+            print(f"Downloading Daily Extract {year}", file=sys.stderr)
+            text = fetch_optional_text(url)
+            if text:
+                long_rows.extend(parse_daily_extract_json_text(text, year))
+            time.sleep(args.sleep)
+
+        for year, month in recent_months(args.start_date, args.end_date, args.lookback_days):
+            url = DAILY_EXTRACT_MONTH_URL.format(year=year, month=month)
+            print(f"Downloading Daily Extract {year}-{month:02d}", file=sys.stderr)
+            text = fetch_optional_text(url)
+            if text:
+                long_rows.extend(parse_daily_extract_json_text(text, year))
+            time.sleep(args.sleep)
 
         print("Building official wide rows", file=sys.stderr)
         wide_rows = build_official_wide_rows(long_rows, args.start_date, args.end_date)

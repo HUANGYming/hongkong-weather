@@ -15,7 +15,7 @@ It defines four DAGs:
 ```text
 hko_realtime_current            Every 10 minutes, current provisional observations
 hko_daily_backfill_cleanup      Daily 01:25 HK time, archive replay then raw cleanup
-hko_official_d1                 Daily 08:15 HK time, official D1 checker
+hko_official_d1                 Daily 08:15 HK time, official D1/Daily Extract checker
 hko_initial_backfill            Manual bootstrap DAG
 ```
 

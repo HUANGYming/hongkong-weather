@@ -14,6 +14,7 @@ from hko_common import (
     database_url_from_env,
     load_dotenv,
     parse_d1_csv_text,
+    parse_daily_extract_json_text,
     parse_hourly_rainfall_json,
     parse_realtime_archive_zip,
     parse_realtime_csv_text,
@@ -36,6 +37,22 @@ class HkoParsingTests(unittest.TestCase):
         self.assertEqual(wide[0]["mean_temp_c_raw"], "28.8")
         self.assertIsNone(wide[1]["mean_temp_c"])
         self.assertEqual(wide[1]["mean_temp_c_raw"], "***")
+
+    def test_parse_daily_extract_json_and_build_wide_rows(self):
+        text = """{"stn":{"data":[{"month":7,"dayData":[["01","1007.9","33.5","30.3","28.2","25.9","79","74","Trace"],["Mean/Total","1006.0","31.2","28.8","26.7","25.4","83","80","719.4"]]}]}}"""
+        rows = parse_daily_extract_json_text(text, 2026)
+        wide = build_official_wide_rows(rows, date(2026, 7, 1), date(2026, 7, 1))
+
+        self.assertEqual(len(wide), 1)
+        self.assertEqual(wide[0]["date"], date(2026, 7, 1))
+        self.assertEqual(wide[0]["mslp_hpa"], 1007.9)
+        self.assertEqual(wide[0]["max_temp_c"], 33.5)
+        self.assertEqual(wide[0]["mean_temp_c"], 30.3)
+        self.assertEqual(wide[0]["min_temp_c"], 28.2)
+        self.assertEqual(wide[0]["mean_dew_point_c"], 25.9)
+        self.assertEqual(wide[0]["mean_relative_humidity_pct"], 79)
+        self.assertEqual(wide[0]["mean_cloud_amount_pct"], 74)
+        self.assertEqual(wide[0]["total_rainfall_mm"], 0.025)
 
     def test_parse_realtime_temperature_csv_hko_only(self):
         text = """Date time,Automatic Weather Station,Air Temperature(degree Celsius)

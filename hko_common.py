@@ -231,6 +231,45 @@ def parse_d1_csv_text(text: str, element: Element) -> list[dict[str, object]]:
     return rows
 
 
+DAILY_EXTRACT_ELEMENT_INDEXES = {
+    "MSLP": 1,
+    "MAXT": 2,
+    "TEMP": 3,
+    "MINT": 4,
+    "DEW": 5,
+    "RH": 6,
+    "CLD": 7,
+    "RF": 8,
+}
+
+
+def parse_daily_extract_json_text(text: str, year: int) -> list[dict[str, object]]:
+    payload = json.loads(text.lstrip("\ufeff"))
+    rows: list[dict[str, object]] = []
+    for month_data in payload.get("stn", {}).get("data", []):
+        month = int(month_data["month"])
+        for raw in month_data.get("dayData", []):
+            if not raw or not re.fullmatch(r"\d{1,2}", str(raw[0]).strip()):
+                continue
+            observed_date = date(year, month, int(str(raw[0]).strip()))
+            for element_code, index in DAILY_EXTRACT_ELEMENT_INDEXES.items():
+                if len(raw) <= index:
+                    continue
+                element = HKO_ELEMENTS[element_code]
+                raw_value = str(raw[index]).strip()
+                rows.append(
+                    {
+                        "date": observed_date,
+                        "element_code": element.code,
+                        "column": element.column,
+                        "value": value_to_float(normalize_d1_value(raw_value)),
+                        "raw_value": raw_value or None,
+                        "completeness": "C",
+                    }
+                )
+    return rows
+
+
 def build_official_wide_rows(
     long_rows: list[dict[str, object]],
     start_date: date,
