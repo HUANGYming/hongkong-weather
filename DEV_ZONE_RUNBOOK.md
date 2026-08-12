@@ -35,11 +35,13 @@ DB_USER=1018195
 HKO_DB_DRIVER=psycopg2
 HKO_DB_SCHEMA=generic_sma_ai_shared
 HKO_CREATE_SCHEMA=false
+HKO_CREATE_INDEXES=false
 HKO_PROJECT_DIR=/opt/llm/hongkong-weather
 ```
 
 The Python scripts and Airflow tasks load `.env` automatically from the project root.
 Yellowbrick does not support PostgreSQL `TEXT` columns, so the project DDL uses bounded `varchar` columns.
+Yellowbrick in DEV ZONE does not support PostgreSQL-style `CREATE INDEX`, so indexes are disabled by `HKO_CREATE_INDEXES=false`.
 
 ## 3. Run Offline Tests
 

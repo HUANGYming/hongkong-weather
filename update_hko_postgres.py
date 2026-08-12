@@ -13,6 +13,7 @@ from urllib.parse import urlencode
 import requests
 
 from hko_common import (
+    CREATE_INDEXES,
     HKO_ELEMENTS,
     INGEST_RUN_TABLE,
     LONG_VARCHAR,
@@ -81,12 +82,13 @@ def create_schema(conn) -> None:
                 )
                 """
             )
-            cur.execute(
-                f"""
-                CREATE INDEX IF NOT EXISTS idx_hkweather_official_station_date_v1
-                ON {OFFICIAL_DAILY_TABLE} (station_code, date)
-                """
-            )
+            if CREATE_INDEXES:
+                cur.execute(
+                    f"""
+                    CREATE INDEX IF NOT EXISTS idx_hkweather_official_station_date_v1
+                    ON {OFFICIAL_DAILY_TABLE} (station_code, date)
+                    """
+                )
             cur.execute(
                 f"""
                 CREATE TABLE IF NOT EXISTS {INGEST_RUN_TABLE} (

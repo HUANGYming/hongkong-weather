@@ -136,6 +136,16 @@ class HkoParsingTests(unittest.TestCase):
         finally:
             hko_common.CREATE_SCHEMA = saved
 
+    def test_dev_zone_indexes_disabled_in_config(self):
+        import hko_common
+
+        saved = hko_common.CREATE_INDEXES
+        try:
+            hko_common.CREATE_INDEXES = False
+            self.assertFalse(hko_common.CREATE_INDEXES)
+        finally:
+            hko_common.CREATE_INDEXES = saved
+
 
 if __name__ == "__main__":
     unittest.main()

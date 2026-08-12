@@ -97,6 +97,7 @@ LONG_VARCHAR = "varchar(64000)"
 
 DB_SCHEMA = os.environ.get("HKO_DB_SCHEMA") or os.environ.get("DB_SCHEMA") or os.environ.get("SCHEMA")
 CREATE_SCHEMA = os.environ.get("HKO_CREATE_SCHEMA", "true").lower() not in {"0", "false", "no"}
+CREATE_INDEXES = os.environ.get("HKO_CREATE_INDEXES", "true").lower() not in {"0", "false", "no"}
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
