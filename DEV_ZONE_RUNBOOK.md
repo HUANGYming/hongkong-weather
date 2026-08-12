@@ -39,6 +39,7 @@ HKO_PROJECT_DIR=/opt/llm/hongkong-weather
 The Python scripts and Airflow tasks load `.env` automatically from the project root.
 Yellowbrick does not support PostgreSQL `TEXT` columns, so the project DDL uses bounded `varchar` columns.
 Yellowbrick in DEV ZONE does not support PostgreSQL-style `CREATE INDEX`, so the project DDL does not create secondary indexes.
+Yellowbrick tables can allow duplicate rows, so refresh writes use `DELETE` plus `INSERT` instead of PostgreSQL `ON CONFLICT`.
 
 ## 3. Run Offline Tests
 

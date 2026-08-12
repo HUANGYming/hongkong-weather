@@ -132,18 +132,13 @@ def upsert_official_rows(conn, rows: list[dict[str, object]]) -> int:
 
     columns = official_insert_columns()
     placeholders = ", ".join(["%s"] * len(columns))
-    update_columns = [column for column in columns if column != "date"]
-    assignments = ", ".join(f"{column} = EXCLUDED.{column}" for column in update_columns)
     sql = f"""
         INSERT INTO {OFFICIAL_DAILY_TABLE} ({", ".join(columns)})
         VALUES ({placeholders})
-        ON CONFLICT (date) DO UPDATE SET
-            {assignments},
-            source = 'hko_d1',
-            updated_at = now()
     """
     values = [tuple(row[column] for column in columns) for row in rows]
     with conn.cursor() as cur:
+        cur.executemany(f"DELETE FROM {OFFICIAL_DAILY_TABLE} WHERE date = %s", [(row["date"],) for row in rows])
         cur.executemany(sql, values)
     conn.commit()
     return len(rows)

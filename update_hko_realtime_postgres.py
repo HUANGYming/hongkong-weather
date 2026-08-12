@@ -210,16 +210,9 @@ def upsert_observations(conn, observations: list[Observation]) -> int:
             unit
         )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-        ON CONFLICT (obs_time, source, metric, station_code) DO UPDATE SET
-            obs_date_hk = EXCLUDED.obs_date_hk,
-            station_name = EXCLUDED.station_name,
-            value = EXCLUDED.value,
-            raw_value = EXCLUDED.raw_value,
-            unit = EXCLUDED.unit,
-            fetched_at = now()
     """
-    values = [
-        (
+    deduped = {
+        (obs.obs_time, obs.source, obs.metric, STATION_CODE): (
             obs.obs_time,
             obs.obs_date_hk,
             STATION_CODE,
@@ -231,11 +224,22 @@ def upsert_observations(conn, observations: list[Observation]) -> int:
             obs.unit,
         )
         for obs in observations
-    ]
+    }
+    values = list(deduped.values())
     with conn.cursor() as cur:
+        cur.executemany(
+            f"""
+            DELETE FROM {REALTIME_RAW_TABLE}
+            WHERE obs_time = %s
+              AND source = %s
+              AND metric = %s
+              AND station_code = %s
+            """,
+            list(deduped.keys()),
+        )
         cur.executemany(sql, values)
     conn.commit()
-    return len(observations)
+    return len(values)
 
 
 def recompute_provisional(conn, dates: set[date]) -> int:
@@ -243,29 +247,37 @@ def recompute_provisional(conn, dates: set[date]) -> int:
         return 0
 
     sql = f"""
-        WITH rainfall_per_hour AS (
-            SELECT DISTINCT ON (obs_date_hk, date_trunc('hour', obs_time))
+        WITH rainfall_ranked AS (
+            SELECT
                 obs_date_hk,
                 date_trunc('hour', obs_time) AS rain_hour,
-                value
+                value,
+                row_number() OVER (
+                    PARTITION BY obs_date_hk, date_trunc('hour', obs_time)
+                    ORDER BY obs_time DESC
+                ) AS rn
             FROM {REALTIME_RAW_TABLE}
             WHERE obs_date_hk = %s
               AND station_code = 'HKO'
               AND metric = 'hourly_rainfall_mm'
               AND value IS NOT NULL
-            ORDER BY obs_date_hk, date_trunc('hour', obs_time), obs_time DESC
+        ),
+        rainfall_per_hour AS (
+            SELECT obs_date_hk, rain_hour, value
+            FROM rainfall_ranked
+            WHERE rn = 1
         ),
         base AS (
             SELECT
                 obs_date_hk AS date,
-                avg(value) FILTER (WHERE metric = 'pressure_hpa') AS mslp_hpa,
-                avg(value) FILTER (WHERE metric = 'temperature_c') AS mean_temp_c,
-                avg(value) FILTER (WHERE metric = 'humidity_pct') AS mean_relative_humidity_pct,
-                max(value) FILTER (WHERE metric = 'max_temp_since_midnight_c') AS max_temp_c,
-                min(value) FILTER (WHERE metric = 'min_temp_since_midnight_c') AS min_temp_c,
-                count(*) FILTER (WHERE metric = 'temperature_c' AND value IS NOT NULL) AS sample_count_temp,
-                count(*) FILTER (WHERE metric = 'humidity_pct' AND value IS NOT NULL) AS sample_count_humidity,
-                count(*) FILTER (WHERE metric = 'pressure_hpa' AND value IS NOT NULL) AS sample_count_pressure,
+                avg(CASE WHEN metric = 'pressure_hpa' THEN value END) AS mslp_hpa,
+                avg(CASE WHEN metric = 'temperature_c' THEN value END) AS mean_temp_c,
+                avg(CASE WHEN metric = 'humidity_pct' THEN value END) AS mean_relative_humidity_pct,
+                max(CASE WHEN metric = 'max_temp_since_midnight_c' THEN value END) AS max_temp_c,
+                min(CASE WHEN metric = 'min_temp_since_midnight_c' THEN value END) AS min_temp_c,
+                count(CASE WHEN metric = 'temperature_c' AND value IS NOT NULL THEN 1 END) AS sample_count_temp,
+                count(CASE WHEN metric = 'humidity_pct' AND value IS NOT NULL THEN 1 END) AS sample_count_humidity,
+                count(CASE WHEN metric = 'pressure_hpa' AND value IS NOT NULL THEN 1 END) AS sample_count_pressure,
                 min(obs_time) AS first_obs_time,
                 max(obs_time) AS last_obs_time
             FROM {REALTIME_RAW_TABLE}
@@ -322,25 +334,10 @@ def recompute_provisional(conn, dates: set[date]) -> int:
             now()
         FROM base
         LEFT JOIN rain ON rain.date = base.date
-        ON CONFLICT (date) DO UPDATE SET
-            mslp_hpa = EXCLUDED.mslp_hpa,
-            mean_temp_c = EXCLUDED.mean_temp_c,
-            mean_relative_humidity_pct = EXCLUDED.mean_relative_humidity_pct,
-            total_rainfall_mm = EXCLUDED.total_rainfall_mm,
-            max_temp_c = EXCLUDED.max_temp_c,
-            min_temp_c = EXCLUDED.min_temp_c,
-            sample_count_temp = EXCLUDED.sample_count_temp,
-            sample_count_humidity = EXCLUDED.sample_count_humidity,
-            sample_count_pressure = EXCLUDED.sample_count_pressure,
-            sample_count_rainfall = EXCLUDED.sample_count_rainfall,
-            data_status = 'provisional',
-            source = 'hko_realtime',
-            first_obs_time = EXCLUDED.first_obs_time,
-            last_obs_time = EXCLUDED.last_obs_time,
-            updated_at = now()
     """
     with conn.cursor() as cur:
         for obs_date in sorted(dates):
+            cur.execute(f"DELETE FROM {PROVISIONAL_DAILY_TABLE} WHERE date = %s", (obs_date,))
             cur.execute(sql, (obs_date, obs_date))
     conn.commit()
     return len(dates)
