@@ -37,7 +37,6 @@ DB_PORT=5432
 DB_NAME=bigdata_prod
 DB_USER=1018195
 DB_PASS=replace_with_real_password
-HKO_DB_DRIVER=psycopg2
 HKO_DB_SCHEMA=generic_sma_ai_shared
 HKO_PROJECT_DIR=/opt/llm/hongkong-weather
 HKO_ARCHIVE_LOOKBACK_DAYS=14

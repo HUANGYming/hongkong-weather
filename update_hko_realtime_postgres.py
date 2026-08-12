@@ -12,7 +12,6 @@ from urllib.parse import urlencode
 import requests
 
 from hko_common import (
-    CREATE_INDEXES,
     HOURLY_RAINFALL_URL,
     LATEST_DAILY_VIEW,
     MEDIUM_VARCHAR,
@@ -125,13 +124,6 @@ def create_schema(conn) -> None:
                 )
                 """
             )
-            if CREATE_INDEXES:
-                cur.execute(
-                    f"""
-                    CREATE INDEX IF NOT EXISTS idx_hkweather_raw_date_v1
-                    ON {REALTIME_RAW_TABLE} (obs_date_hk, station_code)
-                    """
-                )
             cur.execute(
                 f"""
                 CREATE TABLE IF NOT EXISTS {PROVISIONAL_DAILY_TABLE} (

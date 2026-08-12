@@ -51,30 +51,11 @@ def database_url_from_env() -> str | None:
 
 
 def connect_database(database_url: str):
-    driver = os.environ.get("HKO_DB_DRIVER", "").lower()
-    if driver in {"psycopg2", "psycopg2-binary"}:
-        try:
-            import psycopg2
-        except ImportError as exc:
-            raise SystemExit("Missing dependency: uv sync --locked") from exc
-        return psycopg2.connect(database_url)
-
-    if driver in {"psycopg", "psycopg3"}:
-        try:
-            import psycopg
-        except ImportError as exc:
-            raise SystemExit("Missing dependency: uv sync --locked") from exc
-        return psycopg.connect(database_url)
-
     try:
-        import psycopg
-    except ImportError:
-        try:
-            import psycopg2
-        except ImportError as exc:
-            raise SystemExit("Missing dependency: uv sync --locked") from exc
-        return psycopg2.connect(database_url)
-    return psycopg.connect(database_url)
+        import psycopg2
+    except ImportError as exc:
+        raise SystemExit("Missing dependency: uv sync --locked") from exc
+    return psycopg2.connect(database_url)
 
 
 HK_TZ = ZoneInfo("Asia/Hong_Kong")
@@ -96,8 +77,6 @@ MEDIUM_VARCHAR = "varchar(512)"
 LONG_VARCHAR = "varchar(64000)"
 
 DB_SCHEMA = os.environ.get("HKO_DB_SCHEMA") or os.environ.get("DB_SCHEMA") or os.environ.get("SCHEMA")
-CREATE_SCHEMA = os.environ.get("HKO_CREATE_SCHEMA", "true").lower() not in {"0", "false", "no"}
-CREATE_INDEXES = os.environ.get("HKO_CREATE_INDEXES", "true").lower() not in {"0", "false", "no"}
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
@@ -115,13 +94,7 @@ def qualify_relation(name: str) -> str:
 
 
 def ensure_database_schema(cur) -> None:
-    if DB_SCHEMA:
-        if not CREATE_SCHEMA:
-            return
-        cur.execute("SELECT 1 FROM information_schema.schemata WHERE schema_name = %s", (DB_SCHEMA,))
-        if cur.fetchone():
-            return
-        cur.execute(f"CREATE SCHEMA IF NOT EXISTS {quote_identifier(DB_SCHEMA)}")
+    return
 
 
 OFFICIAL_DAILY_TABLE = qualify_relation(OFFICIAL_DAILY_TABLE)

@@ -10,7 +10,6 @@ from hko_common import (
     HKO_ELEMENTS,
     build_official_wide_rows,
     database_url_from_env,
-    ensure_database_schema,
     load_dotenv,
     parse_d1_csv_text,
     parse_hourly_rainfall_json,
@@ -116,35 +115,6 @@ class HkoParsingTests(unittest.TestCase):
                     os.environ.pop(key, None)
                 else:
                     os.environ[key] = value
-
-    def test_skip_schema_creation(self):
-        class Cursor:
-            def __init__(self):
-                self.executed = []
-
-            def execute(self, sql, params=None):
-                self.executed.append((sql, params))
-
-        import hko_common
-
-        saved = hko_common.CREATE_SCHEMA
-        try:
-            hko_common.CREATE_SCHEMA = False
-            cursor = Cursor()
-            ensure_database_schema(cursor)
-            self.assertEqual(cursor.executed, [])
-        finally:
-            hko_common.CREATE_SCHEMA = saved
-
-    def test_dev_zone_indexes_disabled_in_config(self):
-        import hko_common
-
-        saved = hko_common.CREATE_INDEXES
-        try:
-            hko_common.CREATE_INDEXES = False
-            self.assertFalse(hko_common.CREATE_INDEXES)
-        finally:
-            hko_common.CREATE_INDEXES = saved
 
 
 if __name__ == "__main__":
