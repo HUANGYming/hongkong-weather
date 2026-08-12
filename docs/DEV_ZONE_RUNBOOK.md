@@ -1,6 +1,6 @@
 # DEV ZONE Runbook
 
-This runbook starts from an empty PostgreSQL database and builds the final HKO daily dataset.
+This runbook starts from DEV ZONE Yellowbrick and builds the final HKO daily dataset.
 
 ## 1. Install
 
@@ -33,7 +33,7 @@ DB_PORT=5432
 DB_NAME=bigdata_prod
 DB_USER=1018195
 HKO_DB_SCHEMA=generic_sma_ai_shared
-HKO_PROJECT_DIR=/opt/llm/hongkong-weather
+HKO_PROJECT_DIR=/opt/llm/chrishuang/hongkong-weather
 ```
 
 The Python scripts and Airflow tasks load `.env` automatically from the project root.
@@ -65,7 +65,7 @@ For the current known gap:
 uv run python update_hko_realtime_postgres.py \
   --mode archive \
   --start-date 2026-07-01 \
-  --end-date 2026-08-09
+  --end-date 2026-08-12
 ```
 
 This uses DATA.GOV.HK Historical Archive to replay HKO 10-minute snapshots and aggregate daily provisional rows.

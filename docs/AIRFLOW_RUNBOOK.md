@@ -38,7 +38,7 @@ DB_NAME=bigdata_prod
 DB_USER=1018195
 DB_PASS=replace_with_real_password
 HKO_DB_SCHEMA=generic_sma_ai_shared
-HKO_PROJECT_DIR=/opt/llm/hongkong-weather
+HKO_PROJECT_DIR=/opt/llm/chrishuang/hongkong-weather
 HKO_ARCHIVE_LOOKBACK_DAYS=14
 HKO_RAW_RETENTION_DAYS=60
 ```
@@ -48,21 +48,21 @@ HKO_RAW_RETENTION_DAYS=60
 ## Quick Deploy For `/opt/llm/airflow/dags`
 
 ```bash
-cd /opt/llm
+cd /opt/llm/chrishuang
 git clone https://github.com/HUANGYming/hongkong-weather.git
-cd /opt/llm/hongkong-weather
+cd /opt/llm/chrishuang/hongkong-weather
 uv sync --locked
 cp .env.example .env
 vi .env
 
-ln -s /opt/llm/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
+ln -s /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
 ```
 
 If the symlink already exists:
 
 ```bash
 rm /opt/llm/airflow/dags/hko_weather_airflow.py
-ln -s /opt/llm/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
+ln -s /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
 ```
 
 ## Install Project Dependencies
@@ -70,7 +70,7 @@ ln -s /opt/llm/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dag
 On each Airflow worker:
 
 ```bash
-cd /opt/llm/hongkong-weather
+cd /opt/llm/chrishuang/hongkong-weather
 uv sync --locked
 ```
 
@@ -79,13 +79,13 @@ uv sync --locked
 Option A: copy/symlink the project DAG file into Airflow's DAG folder:
 
 ```bash
-ln -s /opt/llm/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
+ln -s /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
 ```
 
 Option B: copy the DAG file directly:
 
 ```bash
-cp /opt/llm/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
+cp /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
 ```
 
 Option C: if Airflow already scans this repo's `dags/` directory, no symlink is needed.
@@ -102,7 +102,7 @@ It runs:
 
 ```text
 1. uv run python update_hko_postgres.py --full-refresh
-2. uv run python update_hko_realtime_postgres.py --mode archive --start-date 2026-07-01 --end-date 2026-08-09
+2. uv run python update_hko_realtime_postgres.py --mode archive --start-date 2026-07-01 --end-date 2026-08-12
 3. uv run python update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 

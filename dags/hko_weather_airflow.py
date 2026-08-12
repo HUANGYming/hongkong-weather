@@ -143,7 +143,7 @@ with DAG(
             "update_hko_realtime_postgres.py "
             "--mode archive "
             "--start-date 2026-07-01 "
-            "--end-date 2026-08-09"
+            "--end-date 2026-08-12"
         ),
         execution_timeout=timedelta(hours=2),
     )
