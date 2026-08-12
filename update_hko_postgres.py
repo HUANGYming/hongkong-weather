@@ -130,6 +130,8 @@ def upsert_official_rows(conn, rows: list[dict[str, object]]) -> int:
     if not rows:
         return 0
 
+    min_date = min(row["date"] for row in rows)
+    max_date = max(row["date"] for row in rows)
     columns = official_insert_columns()
     placeholders = ", ".join(["%s"] * len(columns))
     sql = f"""
@@ -138,7 +140,9 @@ def upsert_official_rows(conn, rows: list[dict[str, object]]) -> int:
     """
     values = [tuple(row[column] for column in columns) for row in rows]
     with conn.cursor() as cur:
-        cur.executemany(f"DELETE FROM {OFFICIAL_DAILY_TABLE} WHERE date = %s", [(row["date"],) for row in rows])
+        print(f"Deleting official rows from {min_date} to {max_date}", file=sys.stderr)
+        cur.execute(f"DELETE FROM {OFFICIAL_DAILY_TABLE} WHERE date BETWEEN %s AND %s", (min_date, max_date))
+        print(f"Inserting {len(values):,} official rows", file=sys.stderr)
         cur.executemany(sql, values)
     conn.commit()
     return len(rows)
@@ -220,8 +224,10 @@ def main() -> int:
                     long_rows.extend(parse_d1_csv_text(text, element))
                 time.sleep(args.sleep)
 
+        print("Building official wide rows", file=sys.stderr)
         wide_rows = build_official_wide_rows(long_rows, args.start_date, args.end_date)
         upserted = upsert_official_rows(conn, wide_rows)
+        print("Finishing official ingest run", file=sys.stderr)
         finish_run(conn, run_id, "success", wide_rows)
         print(f"Upserted {upserted:,} official rows", file=sys.stderr)
         return 0
