@@ -26,41 +26,113 @@ data/hko_daily_wide.csv
 
 The default run downloads year-by-year from `2020` through the current year.
 
-## PostgreSQL Production Tables
+## DEV ZONE Yellowbrick Runbook
 
-Install dependencies:
+Use the deployment branch:
 
 ```bash
-# Install uv first if the server does not have it:
-# curl -LsSf https://astral.sh/uv/install.sh | sh
+cd /opt/llm/chrishuang
+git clone https://github.com/HUANGYming/hongkong-weather.git
+cd /opt/llm/chrishuang/hongkong-weather
+git checkout codex/local-airflow-demo
+git pull
 uv sync --locked
 ```
 
-Configure Postgres:
+Create the local `.env` file:
 
 ```bash
-export DATABASE_URL="postgresql://user:password@host:5432/dbname"
+cp .env.example .env
+vi .env
 ```
 
-Load official HKO D1 data from 2020 onward:
+DEV ZONE values:
+
+```dotenv
+DB_HOST=codppybkdbd01.melco-resorts.com
+DB_PORT=5432
+DB_NAME=bigdata_prod
+DB_USER=1018195
+DB_PASS=replace_with_real_password
+HKO_DB_SCHEMA=generic_sma_ai_shared
+
+HKO_PROJECT_DIR=/opt/llm/chrishuang/hongkong-weather
+HKO_ARCHIVE_LOOKBACK_DAYS=14
+HKO_RAW_RETENTION_DAYS=60
+```
+
+Do not commit `.env`.
+
+Run offline tests:
+
+```bash
+uv run python -m unittest discover -s tests -v
+```
+
+Smoke test the Yellowbrick connection and current realtime path:
+
+```bash
+uv run python update_hko_realtime_postgres.py --mode current --include-rainfall
+```
+
+Expected output:
+
+```text
+Upserted ... realtime observations
+Recomputed ... provisional daily rows
+```
+
+Load official HKO D1 data from `2020-01-01` onward:
 
 ```bash
 uv run python update_hko_postgres.py --full-refresh
 ```
 
-Backfill the missing provisional period from DATA.GOV.HK historical archive:
+Backfill provisional daily rows from DATA.GOV.HK historical archive:
 
 ```bash
 uv run python update_hko_realtime_postgres.py \
   --mode archive \
   --start-date 2026-07-01 \
-  --end-date 2026-08-09
+  --end-date 2026-08-12
 ```
 
-Update current provisional observations:
+Run current realtime again:
 
 ```bash
 uv run python update_hko_realtime_postgres.py --mode current --include-rainfall
+```
+
+Verify the business-facing view:
+
+```bash
+source .env
+export DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+
+psql "$DATABASE_URL" -c "
+SELECT
+    date,
+    data_status,
+    mean_temp_c,
+    max_temp_c,
+    min_temp_c,
+    mslp_hpa,
+    mean_relative_humidity_pct,
+    total_rainfall_mm
+FROM generic_sma_ai_shared.fact_feature_date_hkweather_1day_daily_v1
+ORDER BY date DESC
+LIMIT 20;
+"
+```
+
+Yellowbrick notes:
+
+```text
+The project uses psycopg2.
+The project does not create schemas.
+The project does not create secondary indexes.
+The project uses varchar columns instead of PostgreSQL text columns.
+Refresh writes use DELETE plus INSERT instead of PostgreSQL ON CONFLICT.
 ```
 
 Main tables/views:
