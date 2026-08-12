@@ -28,11 +28,11 @@ admin / admin
 ## 推荐学习路径
 
 1. 进入 DAG 首页，看这几个 DAG：
-   - `hko_realtime_current`
-   - `hko_daily_backfill_cleanup`
-   - `hko_official_d1`
-   - `hko_initial_backfill`
-2. 点进 `hko_realtime_current`，看 `Grid`、`Graph`、`Code`。
+   - `hko_weather_realtime_ingest`
+   - `hko_weather_realtime_cleanup`
+   - `hko_weather_official_daily_ingest`
+   - `hko_weather_bootstrap`
+2. 点进 `hko_weather_realtime_ingest`，看 `Grid`、`Graph`、`Code`。
 3. 本地稳定跑单个任务：
 
 ```bash

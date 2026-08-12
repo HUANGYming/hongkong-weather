@@ -13,10 +13,10 @@ dags/hko_weather_airflow.py
 It defines four DAGs:
 
 ```text
-hko_realtime_current            Every 10 minutes, current realtime raw observations
-hko_daily_backfill_cleanup      Daily 01:25 HK time, raw cleanup
-hko_official_d1                 Daily 08:15 HK time, official D1/Daily Extract checker
-hko_initial_backfill            Manual bootstrap DAG
+hko_weather_realtime_ingest          Every 10 minutes, current realtime observations
+hko_weather_realtime_cleanup         Daily 01:25 HK time, raw observation cleanup
+hko_weather_official_daily_ingest    Daily 08:15 HK time, official D1/Daily Extract
+hko_weather_bootstrap                Manual bootstrap DAG
 ```
 
 ## Worker Requirements
@@ -94,7 +94,7 @@ Option C: if Airflow already scans this repo's `dags/` directory, no symlink is 
 Trigger this manual DAG first:
 
 ```text
-hko_initial_backfill
+hko_weather_bootstrap
 ```
 
 It runs:
@@ -107,16 +107,25 @@ It runs:
 After it succeeds, enable the scheduled DAGs:
 
 ```text
-hko_realtime_current
-hko_daily_backfill_cleanup
-hko_official_d1
+hko_weather_realtime_ingest
+hko_weather_realtime_cleanup
+hko_weather_official_daily_ingest
 ```
 
 If you deployed an older version, pause or delete the retired DAG records:
 
 ```bash
+airflow dags pause hko_realtime_current || true
+airflow dags pause hko_daily_backfill_cleanup || true
+airflow dags pause hko_official_d1 || true
+airflow dags pause hko_initial_backfill || true
 airflow dags pause hko_realtime_archive_backfill || true
 airflow dags pause hko_realtime_raw_cleanup || true
+
+airflow dags delete hko_realtime_current --yes || true
+airflow dags delete hko_daily_backfill_cleanup --yes || true
+airflow dags delete hko_official_d1 --yes || true
+airflow dags delete hko_initial_backfill --yes || true
 airflow dags delete hko_realtime_archive_backfill --yes || true
 airflow dags delete hko_realtime_raw_cleanup --yes || true
 ```

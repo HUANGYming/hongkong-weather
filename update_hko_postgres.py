@@ -215,7 +215,7 @@ def insert_run(conn, years: list[int]) -> int:
         cur.execute(
             f"""
             INSERT INTO {INGEST_RUN_TABLE} (id, status, job_name, years)
-            VALUES (%s, 'running', 'official_d1', %s)
+            VALUES (%s, 'running', 'hko_weather_official_daily_ingest', %s)
             """,
             (run_id, ",".join(str(year) for year in years)),
         )

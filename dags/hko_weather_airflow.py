@@ -56,7 +56,7 @@ def uv_command(command: str) -> str:
 
 
 with DAG(
-    dag_id="hko_realtime_current",
+    dag_id="hko_weather_realtime_ingest",
     description="Fetch current HKO realtime observations and update raw observation rows.",
     default_args=DEFAULT_ARGS,
     start_date=pendulum.datetime(2026, 8, 10, tz=HK_TZ),
@@ -64,16 +64,16 @@ with DAG(
     catchup=False,
     max_active_runs=1,
     tags=["hko", "weather", "realtime"],
-) as realtime_current_dag:
+) as realtime_ingest_dag:
     BashOperator(
-        task_id="update_current_realtime",
+        task_id="ingest_current_observations",
         bash_command=uv_command("update_hko_realtime_postgres.py --mode current --include-rainfall"),
         execution_timeout=timedelta(minutes=8),
     )
 
 
 with DAG(
-    dag_id="hko_daily_backfill_cleanup",
+    dag_id="hko_weather_realtime_cleanup",
     description="Prune old HKO realtime raw observations.",
     default_args=DEFAULT_ARGS,
     start_date=pendulum.datetime(2026, 8, 10, tz=HK_TZ),
@@ -81,9 +81,9 @@ with DAG(
     catchup=False,
     max_active_runs=1,
     tags=["hko", "weather", "daily", "cleanup"],
-) as daily_backfill_cleanup_dag:
+) as realtime_cleanup_dag:
     BashOperator(
-        task_id="cleanup_realtime_raw",
+        task_id="cleanup_realtime_observations",
         bash_command=uv_command(
             'cleanup_hko_realtime_raw.py --retention-days "${HKO_RAW_RETENTION_DAYS:-60}"'
         ),
@@ -92,7 +92,7 @@ with DAG(
 
 
 with DAG(
-    dag_id="hko_official_d1",
+    dag_id="hko_weather_official_daily_ingest",
     description="Fetch official HKO daily data and update the business daily table.",
     default_args=DEFAULT_ARGS,
     start_date=pendulum.datetime(2026, 8, 10, tz=HK_TZ),
@@ -100,16 +100,16 @@ with DAG(
     catchup=False,
     max_active_runs=1,
     tags=["hko", "weather", "official"],
-) as official_d1_dag:
+) as official_daily_ingest_dag:
     BashOperator(
-        task_id="update_official_d1",
+        task_id="ingest_official_daily",
         bash_command=uv_command("update_hko_postgres.py"),
         execution_timeout=timedelta(minutes=30),
     )
 
 
 with DAG(
-    dag_id="hko_initial_backfill",
+    dag_id="hko_weather_bootstrap",
     description="Manual bootstrap DAG: official daily full refresh, then current realtime.",
     default_args=DEFAULT_ARGS,
     start_date=pendulum.datetime(2026, 8, 10, tz=HK_TZ),
@@ -117,17 +117,17 @@ with DAG(
     catchup=False,
     max_active_runs=1,
     tags=["hko", "weather", "bootstrap"],
-) as initial_backfill_dag:
-    official_full_refresh = BashOperator(
-        task_id="official_full_refresh",
+) as bootstrap_dag:
+    full_refresh_official_daily = BashOperator(
+        task_id="full_refresh_official_daily",
         bash_command=uv_command("update_hko_postgres.py --full-refresh"),
         execution_timeout=timedelta(hours=1),
     )
 
-    current_realtime = BashOperator(
-        task_id="current_realtime",
+    ingest_current_observations = BashOperator(
+        task_id="ingest_current_observations",
         bash_command=uv_command("update_hko_realtime_postgres.py --mode current --include-rainfall"),
         execution_timeout=timedelta(minutes=8),
     )
 
-    official_full_refresh >> current_realtime
+    full_refresh_official_daily >> ingest_current_observations

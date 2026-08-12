@@ -11,7 +11,7 @@ print((datetime.now(timezone.utc) - timedelta(minutes=1)).strftime("%Y-%m-%dT%H:
 PY
 )}"
 
-airflow tasks test hko_realtime_current update_current_realtime "$EXECUTION_DATE"
+airflow tasks test hko_weather_realtime_ingest ingest_current_observations "$EXECUTION_DATE"
 
 docker exec "$HKO_POSTGRES_CONTAINER" psql -U hko -d hko_weather \
   -c "select count(*) as raw_rows from fact_feature_observation_hkweather_10min_realtime_v1;" \
