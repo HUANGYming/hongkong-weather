@@ -57,7 +57,7 @@ uv run python update_hko_postgres.py --full-refresh
 
 Expected official data can still lag by roughly one day because Daily Extract is published after observations are processed.
 
-## 5. Backfill Missing Provisional Days
+## 5. Optional Archive Raw Backfill
 
 For the current known gap:
 
@@ -67,19 +67,7 @@ uv run python update_hko_realtime_postgres.py \
   --start-date 2026-07-01
 ```
 
-This uses DATA.GOV.HK Historical Archive to replay HKO 10-minute snapshots and aggregate daily provisional rows. Historical Archive is only available through yesterday; run the current realtime job afterwards to fill today's provisional row.
-
-Fields covered by archive backfill:
-
-```text
-mean_temp_c
-max_temp_c
-min_temp_c
-mslp_hpa
-mean_relative_humidity_pct
-```
-
-Rainfall is not reliably available from the same archive route. Start collecting rainfall from live hourly observations and let D1 official data fill final rainfall once published.
+This uses DATA.GOV.HK Historical Archive to replay HKO 10-minute snapshots into the raw observation table. It does not create daily business rows.
 
 ## 6. Start Current Realtime Updates
 
@@ -94,7 +82,7 @@ Then query:
 ```sql
 SELECT
     date,
-    data_status,
+    source,
     mean_temp_c,
     max_temp_c,
     min_temp_c,
@@ -111,7 +99,7 @@ If you use the DEV ZONE shared schema directly:
 ```sql
 SELECT
     date,
-    data_status,
+    source,
     mean_temp_c,
     max_temp_c,
     min_temp_c,
@@ -123,16 +111,28 @@ ORDER BY date DESC
 LIMIT 20;
 ```
 
+Realtime observations are queried from the raw table by observation/update time:
+
+```sql
+SELECT
+    obs_time,
+    fetched_at,
+    source,
+    metric,
+    value,
+    unit
+FROM generic_sma_ai_shared.ods_feature_observation_hkweather_10min_realtime_v1
+ORDER BY obs_time DESC, source, metric
+LIMIT 20;
+```
+
 ## 7. Cron
 
 ```cron
-# Current provisional snapshots, every 10 minutes
+# Current realtime raw observations, every 10 minutes
 */10 * * * * cd /path/to/hongkong-weather && uv run python update_hko_realtime_postgres.py --mode current --include-rainfall >> logs/hko_realtime.log 2>&1
 
-# Historical archive backfill for yesterday/recent corrections, daily
-25 1 * * * cd /path/to/hongkong-weather && uv run python update_hko_realtime_postgres.py --mode archive --archive-lookback-days 14 >> logs/hko_archive.log 2>&1
-
-# Official D1 checker, daily
+# Official daily checker, daily
 15 8 * * * cd /path/to/hongkong-weather && uv run python update_hko_postgres.py >> logs/hko_official.log 2>&1
 ```
 
@@ -146,10 +146,8 @@ dags/hko_weather_airflow.py
 ## 8. Main Objects
 
 ```text
-fact_feature_date_hkweather_1day_daily_v1                Official-first daily wide view for business queries
-fact_feature_date_hkweather_official_1day_daily_v1       Official HKO D1/Daily Extract daily rows
-fact_feature_date_hkweather_provisional_1day_daily_v1    Provisional daily aggregates
-ods_feature_observation_hkweather_10min_realtime_v1      Raw realtime/archive snapshots
+fact_feature_date_hkweather_1day_daily_v1                Official HKO D1/Daily Extract daily table
+ods_feature_observation_hkweather_10min_realtime_v1      Realtime/archive observations by obs_time
 meta_feature_run_hkweather_ingest_1run_event_v1          Ingest run log
 ```
 

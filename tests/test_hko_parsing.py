@@ -166,7 +166,6 @@ class HkoParsingTests(unittest.TestCase):
             mock.patch.object(realtime, "create_schema"),
             mock.patch.object(realtime, "fetch_archive_observations", side_effect=fake_fetch_archive),
             mock.patch.object(realtime, "upsert_observations", return_value=0),
-            mock.patch.object(realtime, "recompute_provisional", return_value=0),
         ):
             self.assertEqual(realtime.main(), 0)
 

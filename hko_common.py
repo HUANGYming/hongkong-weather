@@ -66,11 +66,9 @@ RAINFALL_STATION_ID = "RF023"
 
 # Naming convention:
 # [department]_[project]_[OK_entity]_[data_field]_[window_size]_[frequency]_[version]
-OFFICIAL_DAILY_TABLE = "fact_feature_date_hkweather_official_1day_daily_v1"
-PROVISIONAL_DAILY_TABLE = "fact_feature_date_hkweather_provisional_1day_daily_v1"
-LATEST_DAILY_VIEW = "fact_feature_date_hkweather_1day_daily_v1"
-REALTIME_RAW_TABLE = "ods_feature_observation_hkweather_10min_realtime_v1"
-INGEST_RUN_TABLE = "meta_feature_run_hkweather_ingest_1run_event_v1"
+OFFICIAL_DAILY_TABLE_NAME = "fact_feature_date_hkweather_1day_daily_v1"
+REALTIME_RAW_TABLE_NAME = "ods_feature_observation_hkweather_10min_realtime_v1"
+INGEST_RUN_TABLE_NAME = "meta_feature_run_hkweather_ingest_1run_event_v1"
 SCHEMA_LOCK_KEY = "hko_weather_schema_v1"
 SHORT_VARCHAR = "varchar(128)"
 MEDIUM_VARCHAR = "varchar(512)"
@@ -97,11 +95,34 @@ def ensure_database_schema(cur) -> None:
     return
 
 
-OFFICIAL_DAILY_TABLE = qualify_relation(OFFICIAL_DAILY_TABLE)
-PROVISIONAL_DAILY_TABLE = qualify_relation(PROVISIONAL_DAILY_TABLE)
-LATEST_DAILY_VIEW = qualify_relation(LATEST_DAILY_VIEW)
-REALTIME_RAW_TABLE = qualify_relation(REALTIME_RAW_TABLE)
-INGEST_RUN_TABLE = qualify_relation(INGEST_RUN_TABLE)
+def drop_view_if_exists(cur, relation_name: str) -> None:
+    if DB_SCHEMA:
+        cur.execute(
+            """
+            SELECT 1
+            FROM information_schema.views
+            WHERE table_schema = %s
+              AND table_name = %s
+            """,
+            (DB_SCHEMA, relation_name),
+        )
+    else:
+        cur.execute(
+            """
+            SELECT 1
+            FROM information_schema.views
+            WHERE table_schema = current_schema()
+              AND table_name = %s
+            """,
+            (relation_name,),
+        )
+    if cur.fetchone():
+        cur.execute(f"DROP VIEW {qualify_relation(relation_name)}")
+
+
+OFFICIAL_DAILY_TABLE = qualify_relation(OFFICIAL_DAILY_TABLE_NAME)
+REALTIME_RAW_TABLE = qualify_relation(REALTIME_RAW_TABLE_NAME)
+INGEST_RUN_TABLE = qualify_relation(INGEST_RUN_TABLE_NAME)
 
 
 @dataclass(frozen=True)
@@ -370,59 +391,3 @@ def official_value_columns() -> list[str]:
 
 def official_insert_columns() -> list[str]:
     return ["date", "station_code", "station_name", *official_value_columns()]
-
-
-def provisional_daily_table_sql() -> str:
-    return f"""
-        CREATE TABLE IF NOT EXISTS {PROVISIONAL_DAILY_TABLE} (
-            date date PRIMARY KEY,
-            station_code {SHORT_VARCHAR} NOT NULL DEFAULT 'HKO',
-            station_name {SHORT_VARCHAR} NOT NULL DEFAULT 'Hong Kong Observatory',
-            mslp_hpa double precision,
-            mean_temp_c double precision,
-            mean_relative_humidity_pct double precision,
-            total_rainfall_mm double precision,
-            max_temp_c double precision,
-            min_temp_c double precision,
-            sample_count_temp integer,
-            sample_count_humidity integer,
-            sample_count_pressure integer,
-            sample_count_rainfall integer,
-            data_status {SHORT_VARCHAR} NOT NULL DEFAULT 'provisional',
-            source {SHORT_VARCHAR} NOT NULL DEFAULT 'hko_realtime',
-            first_obs_time timestamptz,
-            last_obs_time timestamptz,
-            updated_at timestamptz NOT NULL DEFAULT now()
-        )
-    """
-
-
-def latest_daily_view_sql() -> str:
-    return f"""
-        CREATE OR REPLACE VIEW {LATEST_DAILY_VIEW} AS
-        SELECT
-            COALESCE(o.date, p.date) AS date,
-            CAST('HKO' AS {SHORT_VARCHAR}) AS station_code,
-            CAST('Hong Kong Observatory' AS {SHORT_VARCHAR}) AS station_name,
-            COALESCE(o.mslp_hpa, p.mslp_hpa) AS mslp_hpa,
-            COALESCE(o.mean_temp_c, p.mean_temp_c) AS mean_temp_c,
-            o.mean_dew_point_c,
-            o.mean_wet_bulb_c,
-            COALESCE(o.mean_relative_humidity_pct, p.mean_relative_humidity_pct) AS mean_relative_humidity_pct,
-            o.mean_cloud_amount_pct,
-            COALESCE(o.total_rainfall_mm, p.total_rainfall_mm) AS total_rainfall_mm,
-            COALESCE(o.max_temp_c, p.max_temp_c) AS max_temp_c,
-            COALESCE(o.min_temp_c, p.min_temp_c) AS min_temp_c,
-            o.grass_min_temp_c,
-            CAST(
-                CASE WHEN o.date IS NOT NULL THEN 'official' ELSE 'provisional' END
-                AS {SHORT_VARCHAR}
-            ) AS data_status,
-            COALESCE(o.source, p.source) AS source,
-            GREATEST(
-                COALESCE(o.updated_at, '-infinity'::timestamptz),
-                COALESCE(p.updated_at, '-infinity'::timestamptz)
-            ) AS updated_at
-        FROM {OFFICIAL_DAILY_TABLE} o
-        FULL OUTER JOIN {PROVISIONAL_DAILY_TABLE} p ON o.date = p.date
-    """

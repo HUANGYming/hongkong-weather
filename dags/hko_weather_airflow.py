@@ -8,7 +8,6 @@ Deployment assumptions:
 Optional environment variables:
 - HKO_PROJECT_DIR: absolute path to this repository on the Airflow worker.
 - HKO_RAW_RETENTION_DAYS: raw realtime observation retention, default 60.
-- HKO_ARCHIVE_LOOKBACK_DAYS: daily archive replay window, default 14.
 """
 
 from __future__ import annotations
@@ -58,7 +57,7 @@ def uv_command(command: str) -> str:
 
 with DAG(
     dag_id="hko_realtime_current",
-    description="Fetch current HKO realtime observations and update provisional daily rows.",
+    description="Fetch current HKO realtime observations and update raw observation rows.",
     default_args=DEFAULT_ARGS,
     start_date=pendulum.datetime(2026, 8, 10, tz=HK_TZ),
     schedule="*/10 * * * *",
@@ -75,25 +74,15 @@ with DAG(
 
 with DAG(
     dag_id="hko_daily_backfill_cleanup",
-    description="Replay recent HKO archive snapshots, then prune old realtime raw observations.",
+    description="Prune old HKO realtime raw observations.",
     default_args=DEFAULT_ARGS,
     start_date=pendulum.datetime(2026, 8, 10, tz=HK_TZ),
     schedule="25 1 * * *",
     catchup=False,
     max_active_runs=1,
-    tags=["hko", "weather", "daily", "backfill", "cleanup"],
+    tags=["hko", "weather", "daily", "cleanup"],
 ) as daily_backfill_cleanup_dag:
-    backfill_recent_archive = BashOperator(
-        task_id="backfill_recent_archive",
-        bash_command=uv_command(
-            "update_hko_realtime_postgres.py "
-            "--mode archive "
-            '--archive-lookback-days "${HKO_ARCHIVE_LOOKBACK_DAYS:-14}"'
-        ),
-        execution_timeout=timedelta(hours=1),
-    )
-
-    cleanup_realtime_raw = BashOperator(
+    BashOperator(
         task_id="cleanup_realtime_raw",
         bash_command=uv_command(
             'cleanup_hko_realtime_raw.py --retention-days "${HKO_RAW_RETENTION_DAYS:-60}"'
@@ -101,12 +90,10 @@ with DAG(
         execution_timeout=timedelta(minutes=10),
     )
 
-    backfill_recent_archive >> cleanup_realtime_raw
-
 
 with DAG(
     dag_id="hko_official_d1",
-    description="Fetch official HKO D1 monthly daily data and update official table.",
+    description="Fetch official HKO daily data and update the business daily table.",
     default_args=DEFAULT_ARGS,
     start_date=pendulum.datetime(2026, 8, 10, tz=HK_TZ),
     schedule="15 8 * * *",
@@ -123,7 +110,7 @@ with DAG(
 
 with DAG(
     dag_id="hko_initial_backfill",
-    description="Manual bootstrap DAG: official D1 full refresh, known archive gap backfill, then current realtime.",
+    description="Manual bootstrap DAG: official daily full refresh, then current realtime.",
     default_args=DEFAULT_ARGS,
     start_date=pendulum.datetime(2026, 8, 10, tz=HK_TZ),
     schedule=None,
@@ -137,20 +124,10 @@ with DAG(
         execution_timeout=timedelta(hours=1),
     )
 
-    archive_gap_backfill = BashOperator(
-        task_id="archive_gap_backfill",
-        bash_command=uv_command(
-            "update_hko_realtime_postgres.py "
-            "--mode archive "
-            "--start-date 2026-07-01"
-        ),
-        execution_timeout=timedelta(hours=2),
-    )
-
     current_realtime = BashOperator(
         task_id="current_realtime",
         bash_command=uv_command("update_hko_realtime_postgres.py --mode current --include-rainfall"),
         execution_timeout=timedelta(minutes=8),
     )
 
-    official_full_refresh >> archive_gap_backfill >> current_realtime
+    official_full_refresh >> current_realtime

@@ -9,13 +9,13 @@ station_code = HKO
 station_name = Hong Kong Observatory
 ```
 
-The business-facing object is:
+The business-facing official daily table is:
 
 ```text
 generic_sma_ai_shared.fact_feature_date_hkweather_1day_daily_v1
 ```
 
-It is an official-first daily wide view: official HKO D1/Daily Extract rows are preferred, and provisional realtime daily aggregates fill the latest gap before official daily data is published.
+Realtime observations are stored separately by observation/update time in `ods_feature_observation_hkweather_10min_realtime_v1`.
 
 ## Repository Layout
 
@@ -76,7 +76,6 @@ DB_PASS=replace_with_real_password
 HKO_DB_SCHEMA=generic_sma_ai_shared
 
 HKO_PROJECT_DIR=/opt/llm/chrishuang/hongkong-weather
-HKO_ARCHIVE_LOOKBACK_DAYS=14
 HKO_RAW_RETENTION_DAYS=60
 ```
 
@@ -90,7 +89,7 @@ Offline tests:
 uv run python -m unittest discover -s tests -v
 ```
 
-Smoke test realtime ingestion:
+Smoke test realtime raw ingestion:
 
 ```bash
 uv run python update_hko_realtime_postgres.py --mode current --include-rainfall
@@ -102,7 +101,7 @@ Load official HKO daily data from `2020-01-01` onward. This uses HKO D1 plus Dai
 uv run python update_hko_postgres.py --full-refresh
 ```
 
-Backfill provisional daily rows:
+Optional archive raw backfill:
 
 ```bash
 uv run python update_hko_realtime_postgres.py \
@@ -110,15 +109,13 @@ uv run python update_hko_realtime_postgres.py \
   --start-date 2026-07-01
 ```
 
-DATA.GOV.HK Historical Archive only publishes through yesterday. Today is filled by the current realtime job.
+DATA.GOV.HK Historical Archive only publishes through yesterday. This writes raw observation rows only; it does not produce daily business rows.
 
 Run current realtime again:
 
 ```bash
 uv run python update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
-
-The final business relation `fact_feature_date_hkweather_1day_daily_v1` is a view. It is created by either the official loader or the realtime loader.
 
 ## Verify
 
@@ -129,13 +126,13 @@ source .env
 export DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
 ```
 
-Query the business-facing view:
+Query the business-facing official daily table:
 
 ```bash
 psql "$DATABASE_URL" -c "
 SELECT
     date,
-    data_status,
+    source,
     mean_temp_c,
     max_temp_c,
     min_temp_c,
@@ -148,13 +145,28 @@ LIMIT 20;
 "
 ```
 
+Query recent realtime raw observations:
+
+```bash
+psql "$DATABASE_URL" -c "
+SELECT
+    obs_time,
+    fetched_at,
+    source,
+    metric,
+    value,
+    unit
+FROM generic_sma_ai_shared.ods_feature_observation_hkweather_10min_realtime_v1
+ORDER BY obs_time DESC, source, metric
+LIMIT 20;
+"
+```
+
 ## Main Objects
 
 ```text
-fact_feature_date_hkweather_1day_daily_v1                Official-first daily wide view for business queries
-fact_feature_date_hkweather_official_1day_daily_v1       Official HKO D1/Daily Extract daily rows
-fact_feature_date_hkweather_provisional_1day_daily_v1    Provisional daily aggregates
-ods_feature_observation_hkweather_10min_realtime_v1      Raw realtime/archive snapshots
+fact_feature_date_hkweather_1day_daily_v1                Official HKO D1/Daily Extract daily table
+ods_feature_observation_hkweather_10min_realtime_v1      Realtime/archive observations by obs_time
 meta_feature_run_hkweather_ingest_1run_event_v1          Ingest run log
 ```
 

@@ -15,4 +15,4 @@ airflow tasks test hko_realtime_current update_current_realtime "$EXECUTION_DATE
 
 docker exec "$HKO_POSTGRES_CONTAINER" psql -U hko -d hko_weather \
   -c "select count(*) as raw_rows from ods_feature_observation_hkweather_10min_realtime_v1;" \
-  -c "select date, data_status, updated_at from fact_feature_date_hkweather_provisional_1day_daily_v1 order by date desc limit 5;"
+  -c "select obs_time, fetched_at, source, metric, value from ods_feature_observation_hkweather_10min_realtime_v1 order by obs_time desc, source, metric limit 10;"

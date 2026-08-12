@@ -45,7 +45,7 @@ scripts/local_airflow_test_current.sh
 uv run python update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 
-然后查询本地 Docker Postgres，确认 raw 表和 provisional daily 表有数据。
+然后查询本地 Docker Postgres，确认 realtime raw 表有数据。
 
 ## 为什么本地不默认启动 scheduler
 

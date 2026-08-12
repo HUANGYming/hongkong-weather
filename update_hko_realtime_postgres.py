@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Load provisional HKO realtime and historical-archive snapshots into PostgreSQL."""
+"""Load HKO realtime and historical-archive observations into PostgreSQL."""
 
 from __future__ import annotations
 
@@ -14,8 +14,6 @@ import requests
 from hko_common import (
     HOURLY_RAINFALL_URL,
     MEDIUM_VARCHAR,
-    OFFICIAL_DAILY_TABLE,
-    PROVISIONAL_DAILY_TABLE,
     REALTIME_CSV_RESOURCES,
     REALTIME_RAW_TABLE,
     SCHEMA_LOCK_KEY,
@@ -27,11 +25,9 @@ from hko_common import (
     database_url_from_env,
     ensure_database_schema,
     hk_today,
-    latest_daily_view_sql,
     parse_hourly_rainfall_json,
     parse_realtime_archive_zip,
     parse_realtime_csv_text,
-    provisional_daily_table_sql,
 )
 
 
@@ -69,47 +65,6 @@ def create_schema(conn) -> None:
             ensure_database_schema(cur)
             cur.execute(
                 f"""
-                CREATE TABLE IF NOT EXISTS {OFFICIAL_DAILY_TABLE} (
-                date date PRIMARY KEY,
-                station_code {SHORT_VARCHAR} NOT NULL DEFAULT 'HKO',
-                station_name {SHORT_VARCHAR} NOT NULL DEFAULT 'Hong Kong Observatory',
-                mslp_hpa double precision,
-                mslp_hpa_raw {MEDIUM_VARCHAR},
-                mslp_hpa_completeness {SHORT_VARCHAR},
-                mean_temp_c double precision,
-                mean_temp_c_raw {MEDIUM_VARCHAR},
-                mean_temp_c_completeness {SHORT_VARCHAR},
-                mean_dew_point_c double precision,
-                mean_dew_point_c_raw {MEDIUM_VARCHAR},
-                mean_dew_point_c_completeness {SHORT_VARCHAR},
-                mean_wet_bulb_c double precision,
-                mean_wet_bulb_c_raw {MEDIUM_VARCHAR},
-                mean_wet_bulb_c_completeness {SHORT_VARCHAR},
-                mean_relative_humidity_pct double precision,
-                mean_relative_humidity_pct_raw {MEDIUM_VARCHAR},
-                mean_relative_humidity_pct_completeness {SHORT_VARCHAR},
-                mean_cloud_amount_pct double precision,
-                mean_cloud_amount_pct_raw {MEDIUM_VARCHAR},
-                mean_cloud_amount_pct_completeness {SHORT_VARCHAR},
-                total_rainfall_mm double precision,
-                total_rainfall_mm_raw {MEDIUM_VARCHAR},
-                total_rainfall_mm_completeness {SHORT_VARCHAR},
-                max_temp_c double precision,
-                max_temp_c_raw {MEDIUM_VARCHAR},
-                max_temp_c_completeness {SHORT_VARCHAR},
-                min_temp_c double precision,
-                min_temp_c_raw {MEDIUM_VARCHAR},
-                min_temp_c_completeness {SHORT_VARCHAR},
-                grass_min_temp_c double precision,
-                grass_min_temp_c_raw {MEDIUM_VARCHAR},
-                grass_min_temp_c_completeness {SHORT_VARCHAR},
-                source {SHORT_VARCHAR} NOT NULL DEFAULT 'hko_d1',
-                updated_at timestamptz NOT NULL DEFAULT now()
-                )
-                """
-            )
-            cur.execute(
-                f"""
                 CREATE TABLE IF NOT EXISTS {REALTIME_RAW_TABLE} (
                 obs_time timestamptz NOT NULL,
                 obs_date_hk date NOT NULL,
@@ -125,8 +80,6 @@ def create_schema(conn) -> None:
                 )
                 """
             )
-            cur.execute(provisional_daily_table_sql())
-            cur.execute(latest_daily_view_sql())
         conn.commit()
     except Exception:
         conn.rollback()
@@ -219,107 +172,6 @@ def insert_observation_rows(cur, values: list[tuple[object, ...]]) -> None:
     )
 
 
-def recompute_provisional(conn, dates: set[date]) -> int:
-    if not dates:
-        return 0
-
-    sql = f"""
-        WITH rainfall_ranked AS (
-            SELECT
-                obs_date_hk,
-                date_trunc('hour', obs_time) AS rain_hour,
-                value,
-                row_number() OVER (
-                    PARTITION BY obs_date_hk, date_trunc('hour', obs_time)
-                    ORDER BY obs_time DESC
-                ) AS rn
-            FROM {REALTIME_RAW_TABLE}
-            WHERE obs_date_hk = %s
-              AND station_code = 'HKO'
-              AND metric = 'hourly_rainfall_mm'
-              AND value IS NOT NULL
-        ),
-        rainfall_per_hour AS (
-            SELECT obs_date_hk, rain_hour, value
-            FROM rainfall_ranked
-            WHERE rn = 1
-        ),
-        base AS (
-            SELECT
-                obs_date_hk AS date,
-                avg(CASE WHEN metric = 'pressure_hpa' THEN value END) AS mslp_hpa,
-                avg(CASE WHEN metric = 'temperature_c' THEN value END) AS mean_temp_c,
-                avg(CASE WHEN metric = 'humidity_pct' THEN value END) AS mean_relative_humidity_pct,
-                max(CASE WHEN metric = 'max_temp_since_midnight_c' THEN value END) AS max_temp_c,
-                min(CASE WHEN metric = 'min_temp_since_midnight_c' THEN value END) AS min_temp_c,
-                count(CASE WHEN metric = 'temperature_c' AND value IS NOT NULL THEN 1 END) AS sample_count_temp,
-                count(CASE WHEN metric = 'humidity_pct' AND value IS NOT NULL THEN 1 END) AS sample_count_humidity,
-                count(CASE WHEN metric = 'pressure_hpa' AND value IS NOT NULL THEN 1 END) AS sample_count_pressure,
-                min(obs_time) AS first_obs_time,
-                max(obs_time) AS last_obs_time
-            FROM {REALTIME_RAW_TABLE}
-            WHERE obs_date_hk = %s
-              AND station_code = 'HKO'
-            GROUP BY obs_date_hk
-        ),
-        rain AS (
-            SELECT
-                obs_date_hk AS date,
-                sum(value) AS total_rainfall_mm,
-                count(*) AS sample_count_rainfall
-            FROM rainfall_per_hour
-            GROUP BY obs_date_hk
-        )
-        INSERT INTO {PROVISIONAL_DAILY_TABLE} (
-            date,
-            station_code,
-            station_name,
-            mslp_hpa,
-            mean_temp_c,
-            mean_relative_humidity_pct,
-            total_rainfall_mm,
-            max_temp_c,
-            min_temp_c,
-            sample_count_temp,
-            sample_count_humidity,
-            sample_count_pressure,
-            sample_count_rainfall,
-            data_status,
-            source,
-            first_obs_time,
-            last_obs_time,
-            updated_at
-        )
-        SELECT
-            base.date,
-            'HKO',
-            'Hong Kong Observatory',
-            base.mslp_hpa,
-            base.mean_temp_c,
-            base.mean_relative_humidity_pct,
-            rain.total_rainfall_mm,
-            base.max_temp_c,
-            base.min_temp_c,
-            base.sample_count_temp,
-            base.sample_count_humidity,
-            base.sample_count_pressure,
-            COALESCE(rain.sample_count_rainfall, 0),
-            'provisional',
-            'hko_realtime',
-            base.first_obs_time,
-            base.last_obs_time,
-            now()
-        FROM base
-        LEFT JOIN rain ON rain.date = base.date
-    """
-    with conn.cursor() as cur:
-        for obs_date in sorted(dates):
-            cur.execute(f"DELETE FROM {PROVISIONAL_DAILY_TABLE} WHERE date = %s", (obs_date,))
-            cur.execute(sql, (obs_date, obs_date))
-    conn.commit()
-    return len(dates)
-
-
 def fetch_current_observations(include_rainfall: bool) -> list[Observation]:
     observations: list[Observation] = []
     for key, config in REALTIME_CSV_RESOURCES.items():
@@ -387,11 +239,11 @@ def parse_iso_date(value: str) -> date:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Upsert HKO realtime/provisional data into PostgreSQL.")
+    parser = argparse.ArgumentParser(description="Upsert HKO realtime observations into PostgreSQL.")
     parser.add_argument("--database-url", default=database_url_from_env())
-    parser.add_argument("--mode", choices=["current", "archive", "both", "recompute-only"], default="current")
-    parser.add_argument("--start-date", type=parse_iso_date, help="Archive/recompute start date.")
-    parser.add_argument("--end-date", type=parse_iso_date, help="Archive/recompute end date.")
+    parser.add_argument("--mode", choices=["current", "archive", "both"], default="current")
+    parser.add_argument("--start-date", type=parse_iso_date, help="Archive start date.")
+    parser.add_argument("--end-date", type=parse_iso_date, help="Archive end date.")
     parser.add_argument("--archive-lookback-days", type=int, default=14)
     parser.add_argument("--include-rainfall", action="store_true", help="Fetch current hourly rainfall API.")
     return parser
@@ -430,22 +282,15 @@ def main() -> int:
         if args.mode in {"archive", "both"}:
             archive_observations = fetch_archive_observations(start_date, end_date)
 
-        if args.mode == "recompute-only":
-            affected_dates = {start_date + timedelta(days=offset) for offset in range((end_date - start_date).days + 1)}
-        else:
-            affected_dates = {obs.obs_date_hk for obs in current_observations + archive_observations}
-            if archive_observations:
-                replaced, groups = replace_archive_observations(conn, archive_observations)
-                print(
-                    f"Replaced {replaced:,} archive observations across {groups:,} date/source/metric groups",
-                    file=sys.stderr,
-                )
-            if current_observations:
-                upserted = upsert_observations(conn, current_observations)
-                print(f"Upserted {upserted:,} current observations", file=sys.stderr)
-
-        recomputed = recompute_provisional(conn, affected_dates)
-        print(f"Recomputed {recomputed:,} provisional daily rows", file=sys.stderr)
+        if archive_observations:
+            replaced, groups = replace_archive_observations(conn, archive_observations)
+            print(
+                f"Replaced {replaced:,} archive observations across {groups:,} date/source/metric groups",
+                file=sys.stderr,
+            )
+        if current_observations:
+            upserted = upsert_observations(conn, current_observations)
+            print(f"Upserted {upserted:,} current observations", file=sys.stderr)
         return 0
     finally:
         conn.close()

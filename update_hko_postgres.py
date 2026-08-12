@@ -25,13 +25,13 @@ from hko_common import (
     build_official_wide_rows,
     connect_database,
     database_url_from_env,
+    drop_view_if_exists,
     ensure_database_schema,
     hk_today,
-    latest_daily_view_sql,
+    OFFICIAL_DAILY_TABLE_NAME,
     official_insert_columns,
     parse_d1_csv_text,
     parse_daily_extract_json_text,
-    provisional_daily_table_sql,
 )
 
 
@@ -83,6 +83,7 @@ def create_schema(conn) -> None:
 
         with conn.cursor() as cur:
             ensure_database_schema(cur)
+            drop_view_if_exists(cur, OFFICIAL_DAILY_TABLE_NAME)
             cur.execute(
                 f"""
                 CREATE TABLE IF NOT EXISTS {OFFICIAL_DAILY_TABLE} (
@@ -111,8 +112,6 @@ def create_schema(conn) -> None:
                 )
                 """
             )
-            cur.execute(provisional_daily_table_sql())
-            cur.execute(latest_daily_view_sql())
         conn.commit()
     except Exception:
         conn.rollback()
