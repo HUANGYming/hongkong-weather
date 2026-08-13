@@ -53,7 +53,7 @@ cd /opt/llm/chrishuang/hongkong-weather
 docker build -t hongkong-weather:latest .
 ```
 
-Then add these values to the same environment that Airflow uses for DAG parsing and task execution:
+Then add these values to `/opt/llm/chrishuang/hongkong-weather/.env`:
 
 ```dotenv
 HKO_DOCKER_IMAGE=hongkong-weather:latest

@@ -32,11 +32,11 @@ except ImportError:  # Airflow 2.x compatibility.
 
 DAG_DIR = Path(__file__).resolve().parent
 DEFAULT_PROJECT_DIR = DAG_DIR.parent
-PROJECT_DIR = os.environ.get("HKO_PROJECT_DIR", str(DEFAULT_PROJECT_DIR))
-DOCKER_IMAGE = os.environ.get("HKO_DOCKER_IMAGE")
-DOCKER_BIN = os.environ.get("HKO_DOCKER_BIN", "docker")
-DOCKER_ENV_FILE = os.environ.get("HKO_DOCKER_ENV_FILE", str(Path(PROJECT_DIR) / ".env"))
-DOCKER_RUN_ARGS = os.environ.get("HKO_DOCKER_RUN_ARGS", "")
+DEV_ZONE_PROJECT_DIR = Path("/opt/llm/chrishuang/hongkong-weather")
+PROJECT_DIR = os.environ.get(
+    "HKO_PROJECT_DIR",
+    str(DEV_ZONE_PROJECT_DIR if DEV_ZONE_PROJECT_DIR.exists() else DEFAULT_PROJECT_DIR),
+)
 HK_TZ = pendulum.timezone("Asia/Hong_Kong")
 
 
@@ -49,23 +49,23 @@ DEFAULT_ARGS = {
 
 
 def task_command(command: str) -> str:
-    if DOCKER_IMAGE:
-        return (
-            "set -euo pipefail; "
-            f"{shlex.quote(DOCKER_BIN)} run --rm "
-            f"--env-file {shlex.quote(DOCKER_ENV_FILE)} "
-            f"{DOCKER_RUN_ARGS} "
-            f"{shlex.quote(DOCKER_IMAGE)} {command}"
-        )
-
+    quoted_project_dir = shlex.quote(PROJECT_DIR)
     return (
         "set -euo pipefail; "
-        f"cd {PROJECT_DIR!r}; "
-        "if [ -f .env ]; then set -a; . ./.env; set +a; fi; "
+        f'PROJECT_DIR={quoted_project_dir}; '
+        'if [ -f "${PROJECT_DIR}/.env" ]; then set -a; . "${PROJECT_DIR}/.env"; set +a; fi; '
         'if [ -z "${DATABASE_URL:-}" ] && [ -z "${DB_HOST:-}" ]; then '
         'echo "DATABASE_URL or DB_* settings are required"; exit 1; '
         "fi; "
-        f"uv run python {command}"
+        'if [ -n "${HKO_DOCKER_IMAGE:-}" ]; then '
+        'HKO_DOCKER_BIN="${HKO_DOCKER_BIN:-docker}"; '
+        'HKO_DOCKER_ENV_FILE="${HKO_DOCKER_ENV_FILE:-${PROJECT_DIR}/.env}"; '
+        '"${HKO_DOCKER_BIN}" run --rm --env-file "${HKO_DOCKER_ENV_FILE}" ${HKO_DOCKER_RUN_ARGS:-} '
+        f'"${{HKO_DOCKER_IMAGE}}" {command}; '
+        "else "
+        'cd "${PROJECT_DIR}"; '
+        f"uv run python {command}; "
+        "fi"
     )
 
 

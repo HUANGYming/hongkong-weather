@@ -119,25 +119,93 @@ uv run python update_hko_realtime_postgres.py --mode current --include-rainfall
 
 ## Docker
 
-Build the project image:
+Use Docker mode when you want Airflow to execute a packaged project image instead of reading the project `.venv` directly.
+
+Pull latest code and build the image:
 
 ```bash
+cd /opt/llm/chrishuang/hongkong-weather
+git pull origin codex/local-airflow-demo
 docker build -t hongkong-weather:latest .
 ```
 
-Run one job with the project `.env`:
+Test the image can start:
 
 ```bash
-docker run --rm --env-file .env \
+docker run --rm hongkong-weather:latest update_hko_realtime_postgres.py --help
+```
+
+Test realtime ingestion with the project `.env`:
+
+```bash
+docker run --rm --env-file /opt/llm/chrishuang/hongkong-weather/.env \
   hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 
-Airflow can use Docker mode by setting:
+If the container cannot reach Yellowbrick, retry with host networking:
+
+```bash
+docker run --rm --network host --env-file /opt/llm/chrishuang/hongkong-weather/.env \
+  hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
+```
+
+Test official daily ingestion:
+
+```bash
+docker run --rm --env-file /opt/llm/chrishuang/hongkong-weather/.env \
+  hongkong-weather:latest update_hko_postgres.py --start-date 2026-07-01 --end-date 2026-07-03 --sleep 0
+```
+
+If host networking was needed, use:
+
+```bash
+docker run --rm --network host --env-file /opt/llm/chrishuang/hongkong-weather/.env \
+  hongkong-weather:latest update_hko_postgres.py --start-date 2026-07-01 --end-date 2026-07-03 --sleep 0
+```
+
+Enable Airflow Docker mode by adding these lines to `/opt/llm/chrishuang/hongkong-weather/.env`:
 
 ```dotenv
 HKO_DOCKER_IMAGE=hongkong-weather:latest
 HKO_DOCKER_ENV_FILE=/opt/llm/chrishuang/hongkong-weather/.env
 # HKO_DOCKER_RUN_ARGS=--network host
+```
+
+If the manual `docker run --network host ...` command was required, uncomment:
+
+```dotenv
+HKO_DOCKER_RUN_ARGS=--network host
+```
+
+Copy the DAG file after pulling the latest code:
+
+```bash
+cp /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py \
+  /opt/llm/airflow/dags/hko_weather_airflow.py
+```
+
+Wait for Airflow to re-parse the DAG, then test tasks:
+
+```bash
+airflow dags list-import-errors
+airflow dags list | grep hko_weather
+
+airflow tasks test hko_weather_realtime_ingest ingest_current_observations 2026-08-13T12:00:00+08:00
+airflow tasks test hko_weather_official_daily_ingest ingest_official_daily 2026-08-13T08:15:00+08:00
+airflow tasks test hko_weather_realtime_cleanup cleanup_realtime_observations 2026-08-13T01:25:00+08:00
+```
+
+If Airflow itself runs inside Docker Compose, the Airflow worker must have Docker CLI access and the host Docker socket mounted:
+
+```text
+/var/run/docker.sock:/var/run/docker.sock
+```
+
+Test from inside the worker container:
+
+```bash
+docker run --rm --env-file /opt/llm/chrishuang/hongkong-weather/.env \
+  hongkong-weather:latest update_hko_realtime_postgres.py --help
 ```
 
 ## Verify
