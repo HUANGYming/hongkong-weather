@@ -79,6 +79,16 @@ cp /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py \
   /opt/llm/airflow/dags/hko_weather_airflow.py
 ```
 
+Set readable permissions. Do not use `777`.
+
+```bash
+chmod 644 /opt/llm/airflow/dags/hko_weather_airflow.py
+chmod 755 /opt/llm/chrishuang/hongkong-weather
+chmod 755 /opt/llm/chrishuang/hongkong-weather/dags
+chmod 644 /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py
+chmod 640 /opt/llm/chrishuang/hongkong-weather/.env
+```
+
 DAGs:
 
 ```text
