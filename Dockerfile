@@ -13,7 +13,7 @@ ENV PYTHONUNBUFFERED=1 \
     UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT}
 
 COPY pyproject.toml uv.lock ./
-RUN UV_NO_SYNC=0 uv sync --locked --no-dev
+RUN UV_NO_SYNC=0 uv sync --no-dev
 
 COPY hko_common.py ./
 COPY update_hko_postgres.py ./
