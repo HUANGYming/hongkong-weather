@@ -50,7 +50,7 @@ Docker mode avoids most project-directory and Python-environment permission issu
 
 ```bash
 cd /opt/llm/chrishuang/hongkong-weather
-docker build -t hongkong-weather:latest .
+docker image build --tag hongkong-weather:latest .
 ```
 
 Then add these values to `/opt/llm/chrishuang/hongkong-weather/.env`:

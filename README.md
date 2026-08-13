@@ -126,7 +126,15 @@ Pull latest code and build the image:
 ```bash
 cd /opt/llm/chrishuang/hongkong-weather
 git pull origin codex/local-airflow-demo
-docker build -t hongkong-weather:latest .
+docker image build --tag hongkong-weather:latest .
+```
+
+If your Docker wrapper still rejects `--tag`, check what command is actually installed:
+
+```bash
+which docker
+docker --version
+docker image build --help | head -40
 ```
 
 Test the image can start:
