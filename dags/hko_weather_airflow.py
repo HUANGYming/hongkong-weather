@@ -3,7 +3,7 @@
 Deployment assumptions:
 - The DAG file is available to Airflow.
 - Docker is available on every Airflow worker by default.
-- Non-secret DEV ZONE database settings are baked into the Docker image.
+- Non-secret DEV ZONE database settings are code defaults.
 - DB password is stored in Airflow Admin Variables.
 
 Optional environment variables:

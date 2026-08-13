@@ -136,6 +136,23 @@ class HkoParsingTests(unittest.TestCase):
                 else:
                     os.environ[key] = value
 
+    def test_database_url_uses_dev_zone_defaults(self):
+        saved = {key: os.environ.get(key) for key in ("DATABASE_URL", "DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASS")}
+        try:
+            for key in saved:
+                os.environ.pop(key, None)
+            os.environ["DB_PASS"] = "secret"
+            self.assertEqual(
+                database_url_from_env(),
+                "postgresql://1018195:secret@codppybkdbd01.melco-resorts.com:5432/bigdata_prod",
+            )
+        finally:
+            for key, value in saved.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+
     def test_archive_end_date_caps_to_yesterday(self):
         captured = {}
 

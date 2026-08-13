@@ -36,7 +36,7 @@ key:   hko_weather_db_password
 value: replace_with_real_password
 ```
 
-The Docker image contains the DEV ZONE defaults for `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `HKO_DB_SCHEMA`, and `HKO_RAW_RETENTION_DAYS`. The DAG does not read the project `.env` in Docker mode. `HKO_PROJECT_DIR` is only needed for local-uv mode.
+The code contains the DEV ZONE defaults for `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `HKO_DB_SCHEMA`, and `HKO_RAW_RETENTION_DAYS`. The DAG does not read the project `.env` in Docker mode. `HKO_PROJECT_DIR` is only needed for local-uv mode.
 
 ## Docker Runner
 
