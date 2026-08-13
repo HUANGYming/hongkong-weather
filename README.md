@@ -54,10 +54,15 @@ DB_USER=1018195
 DB_PASS=replace_with_real_password
 HKO_DB_SCHEMA=generic_sna_ai_shared
 HKO_RAW_RETENTION_DAYS=60
+
+HTTP_PROXY=http://10.102.246.27:8080
+HTTPS_PROXY=http://10.102.246.27:8080
+NO_PROXY=localhost,127.0.0.1,.melco-resorts.com,10.0.0.0/8
 ```
 
 Docker build copies `.env` into the image as `/app/.env`. Rebuild the image after changing `.env`.
 If DEV ZONE has an internal PyPI mirror, replace `UV_DEFAULT_INDEX` with that mirror URL.
+Airflow DAG runtime also passes these proxy variables into `docker run`.
 
 If Docker needs host networking, set this in the Airflow worker environment:
 

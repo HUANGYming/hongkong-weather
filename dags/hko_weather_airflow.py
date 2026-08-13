@@ -10,6 +10,7 @@ Optional environment variables:
 - HKO_DOCKER_IMAGE: Docker image to run, default hongkong-weather:latest.
 - HKO_PROJECT_DIR: absolute path to this repository, only needed for uv mode.
 - HKO_RAW_RETENTION_DAYS: raw realtime observation retention, default 60.
+- HTTP_PROXY / HTTPS_PROXY / NO_PROXY: runtime proxy settings for Docker tasks.
 """
 
 from __future__ import annotations
@@ -59,7 +60,16 @@ def task_command(command: str) -> str:
         'if [ "${HKO_EXECUTION_MODE}" = "docker" ]; then '
         'HKO_DOCKER_BIN="${HKO_DOCKER_BIN:-docker}"; '
         'HKO_DOCKER_IMAGE="${HKO_DOCKER_IMAGE:-hongkong-weather:latest}"; '
-        '"${HKO_DOCKER_BIN}" run --rm ${HKO_DOCKER_RUN_ARGS:-} '
+        'HTTP_PROXY="${HTTP_PROXY:-http://10.102.246.27:8080}"; '
+        'HTTPS_PROXY="${HTTPS_PROXY:-http://10.102.246.27:8080}"; '
+        'NO_PROXY="${NO_PROXY:-localhost,127.0.0.1,.melco-resorts.com,10.0.0.0/8}"; '
+        'http_proxy="${http_proxy:-${HTTP_PROXY}}"; '
+        'https_proxy="${https_proxy:-${HTTPS_PROXY}}"; '
+        'no_proxy="${no_proxy:-${NO_PROXY}}"; '
+        'export HTTP_PROXY HTTPS_PROXY NO_PROXY http_proxy https_proxy no_proxy; '
+        '"${HKO_DOCKER_BIN}" run --rm '
+        '-e HTTP_PROXY -e HTTPS_PROXY -e NO_PROXY -e http_proxy -e https_proxy -e no_proxy '
+        '${HKO_DOCKER_RUN_ARGS:-} '
         f'"${{HKO_DOCKER_IMAGE}}" {command}; '
         'elif [ "${HKO_EXECUTION_MODE}" = "uv" ]; then '
         'if [ -f "${PROJECT_DIR}/.env" ]; then set -a; . "${PROJECT_DIR}/.env"; set +a; fi; '
