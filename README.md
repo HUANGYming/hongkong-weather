@@ -77,6 +77,11 @@ HKO_DB_SCHEMA=generic_sma_ai_shared
 
 HKO_PROJECT_DIR=/opt/llm/chrishuang/hongkong-weather
 HKO_RAW_RETENTION_DAYS=60
+
+HKO_EXECUTION_MODE=docker
+HKO_DOCKER_IMAGE=hongkong-weather:latest
+HKO_DOCKER_ENV_FILE=/opt/llm/chrishuang/hongkong-weather/.env
+HKO_DOCKER_BIN=docker
 ```
 
 Do not commit `.env`.
@@ -119,7 +124,7 @@ uv run python update_hko_realtime_postgres.py --mode current --include-rainfall
 
 ## Docker
 
-Use Docker mode when you want Airflow to execute a packaged project image instead of reading the project `.venv` directly.
+Airflow runs in Docker mode by default. Each DAG task starts the packaged project image instead of reading the project `.venv` directly.
 
 Pull latest code and build the image:
 
@@ -171,11 +176,13 @@ docker run --rm --network host --env-file /opt/llm/chrishuang/hongkong-weather/.
   hongkong-weather:latest update_hko_postgres.py --start-date 2026-07-01 --end-date 2026-07-03 --sleep 0
 ```
 
-Enable Airflow Docker mode by adding these lines to `/opt/llm/chrishuang/hongkong-weather/.env`:
+Make sure these lines exist in `/opt/llm/chrishuang/hongkong-weather/.env`:
 
 ```dotenv
+HKO_EXECUTION_MODE=docker
 HKO_DOCKER_IMAGE=hongkong-weather:latest
 HKO_DOCKER_ENV_FILE=/opt/llm/chrishuang/hongkong-weather/.env
+HKO_DOCKER_BIN=docker
 # HKO_DOCKER_RUN_ARGS=--network host
 ```
 
@@ -183,6 +190,12 @@ If the manual `docker run --network host ...` command was required, uncomment:
 
 ```dotenv
 HKO_DOCKER_RUN_ARGS=--network host
+```
+
+To temporarily run Airflow with the project uv environment instead of Docker, set:
+
+```dotenv
+HKO_EXECUTION_MODE=uv
 ```
 
 Copy the DAG file after pulling the latest code:

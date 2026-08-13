@@ -21,11 +21,11 @@ hko_weather_bootstrap                Manual bootstrap DAG
 
 ## Worker Requirements
 
-Default local-uv mode requires every Airflow worker to have:
+Default Docker mode requires every Airflow worker to have:
 
 ```text
-uv
-git checkout of this repo
+Docker CLI access
+hongkong-weather:latest image available on the worker host
 project `.env` file or equivalent Airflow environment variables
 ```
 
@@ -40,22 +40,27 @@ DB_PASS=replace_with_real_password
 HKO_DB_SCHEMA=generic_sma_ai_shared
 HKO_PROJECT_DIR=/opt/llm/chrishuang/hongkong-weather
 HKO_RAW_RETENTION_DAYS=60
+HKO_EXECUTION_MODE=docker
+HKO_DOCKER_IMAGE=hongkong-weather:latest
+HKO_DOCKER_ENV_FILE=/opt/llm/chrishuang/hongkong-weather/.env
+HKO_DOCKER_BIN=docker
 ```
 
 `HKO_PROJECT_DIR` is optional if the `dags/` folder lives inside this repository. Set it explicitly in production if Airflow does not resolve the DAG symlink back to the repository.
 
-## Docker Runner Option
+## Docker Runner
 
-Docker mode avoids most project-directory and Python-environment permission issues. Build the image on the Airflow worker host:
+Docker mode avoids most project-directory and Python-environment permission issues. It is the default Airflow execution mode. Build the image on the Airflow worker host:
 
 ```bash
 cd /opt/llm/chrishuang/hongkong-weather
 docker image build --tag hongkong-weather:latest .
 ```
 
-Then add these values to `/opt/llm/chrishuang/hongkong-weather/.env`:
+Then keep these values in `/opt/llm/chrishuang/hongkong-weather/.env`:
 
 ```dotenv
+HKO_EXECUTION_MODE=docker
 HKO_DOCKER_IMAGE=hongkong-weather:latest
 HKO_DOCKER_ENV_FILE=/opt/llm/chrishuang/hongkong-weather/.env
 HKO_DOCKER_BIN=docker
@@ -83,7 +88,7 @@ docker run --rm --env-file /opt/llm/chrishuang/hongkong-weather/.env \
   hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 
-To switch back to local-uv mode, unset `HKO_DOCKER_IMAGE`.
+To temporarily switch back to local-uv mode, set `HKO_EXECUTION_MODE=uv`. In uv mode every Airflow worker also needs `uv` and a working checkout of this repo.
 
 ## Quick Deploy For `/opt/llm/airflow/dags`
 
@@ -107,7 +112,7 @@ ln -s /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/
 
 ## Install Project Dependencies
 
-On each Airflow worker:
+Only needed for local-uv mode. On each Airflow worker:
 
 ```bash
 cd /opt/llm/chrishuang/hongkong-weather

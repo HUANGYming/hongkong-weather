@@ -2,11 +2,13 @@
 
 Deployment assumptions:
 - This repository is available on every Airflow worker.
-- `uv` is installed on every Airflow worker.
+- Docker is available on every Airflow worker by default.
 - `DATABASE_URL` is available in the Airflow worker environment.
 
 Optional environment variables:
 - HKO_PROJECT_DIR: absolute path to this repository on the Airflow worker.
+- HKO_EXECUTION_MODE: docker or uv, default docker.
+- HKO_DOCKER_IMAGE: Docker image to run, default hongkong-weather:latest.
 - HKO_RAW_RETENTION_DAYS: raw realtime observation retention, default 60.
 """
 
@@ -57,14 +59,18 @@ def task_command(command: str) -> str:
         'if [ -z "${DATABASE_URL:-}" ] && [ -z "${DB_HOST:-}" ]; then '
         'echo "DATABASE_URL or DB_* settings are required"; exit 1; '
         "fi; "
-        'if [ -n "${HKO_DOCKER_IMAGE:-}" ]; then '
+        'HKO_EXECUTION_MODE="${HKO_EXECUTION_MODE:-docker}"; '
+        'if [ "${HKO_EXECUTION_MODE}" = "docker" ]; then '
         'HKO_DOCKER_BIN="${HKO_DOCKER_BIN:-docker}"; '
+        'HKO_DOCKER_IMAGE="${HKO_DOCKER_IMAGE:-hongkong-weather:latest}"; '
         'HKO_DOCKER_ENV_FILE="${HKO_DOCKER_ENV_FILE:-${PROJECT_DIR}/.env}"; '
         '"${HKO_DOCKER_BIN}" run --rm --env-file "${HKO_DOCKER_ENV_FILE}" ${HKO_DOCKER_RUN_ARGS:-} '
         f'"${{HKO_DOCKER_IMAGE}}" {command}; '
-        "else "
+        'elif [ "${HKO_EXECUTION_MODE}" = "uv" ]; then '
         'cd "${PROJECT_DIR}"; '
         f"uv run python {command}; "
+        "else "
+        'echo "Unsupported HKO_EXECUTION_MODE=${HKO_EXECUTION_MODE}; use docker or uv"; exit 1; '
         "fi"
     )
 
