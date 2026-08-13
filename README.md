@@ -156,11 +156,3 @@ ORDER BY obs_time DESC, source, metric
 LIMIT 20;
 "
 ```
-
-## More Notes
-
-```text
-docs/AIRFLOW_RUNBOOK.md
-docs/DEV_ZONE_RUNBOOK.md
-docs/LOCAL_AIRFLOW_DEMO.md
-```
