@@ -80,14 +80,17 @@ cp .env.example .env
 vi .env
 docker image build --tag hongkong-weather:latest .
 
+rm -f /opt/llm/airflow/dags/hko_weather_airflow.py
 ln -s /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
+chmod 777 /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py
 ```
 
 If the symlink already exists:
 
 ```bash
-rm /opt/llm/airflow/dags/hko_weather_airflow.py
+rm -f /opt/llm/airflow/dags/hko_weather_airflow.py
 ln -s /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
+chmod 777 /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py
 ```
 
 ## Install Project Dependencies
@@ -101,19 +104,15 @@ uv sync --locked
 
 ## Deploy DAG
 
-Option A: copy/symlink the project DAG file into Airflow's DAG folder:
+Link the project DAG file into Airflow's DAG folder:
 
 ```bash
+rm -f /opt/llm/airflow/dags/hko_weather_airflow.py
 ln -s /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
+chmod 777 /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py
 ```
 
-Option B: copy the DAG file directly:
-
-```bash
-cp /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
-```
-
-Option C: if Airflow already scans this repo's `dags/` directory, no symlink is needed.
+If Airflow already scans this repo's `dags/` directory, no symlink is needed.
 
 ## Bootstrap
 

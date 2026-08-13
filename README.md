@@ -71,17 +71,18 @@ If Airflow also needs host networking for Docker, set this in the Airflow worker
 HKO_DOCKER_RUN_ARGS=--network host
 ```
 
-Copy the DAG:
+Link the DAG:
 
 ```bash
-cp /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py \
+rm -f /opt/llm/airflow/dags/hko_weather_airflow.py
+ln -s /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py \
   /opt/llm/airflow/dags/hko_weather_airflow.py
 ```
 
-Set readable permissions for the DAG. Do not use `777`.
+Set permissions:
 
 ```bash
-chmod 644 /opt/llm/airflow/dags/hko_weather_airflow.py
+chmod 777 /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py
 ```
 
 DAGs:
