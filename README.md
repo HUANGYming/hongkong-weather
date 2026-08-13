@@ -22,8 +22,18 @@ git pull origin codex/local-airflow-demo
 cp .env.example .env
 vi .env
 
+export HTTP_PROXY=http://10.102.246.27:8080
+export HTTPS_PROXY=http://10.102.246.27:8080
+export NO_PROXY=localhost,127.0.0.1,.melco-resorts.com,10.0.0.0/8
+
 docker image build \
   --network host \
+  --build-arg HTTP_PROXY="$HTTP_PROXY" \
+  --build-arg HTTPS_PROXY="$HTTPS_PROXY" \
+  --build-arg NO_PROXY="$NO_PROXY" \
+  --build-arg http_proxy="$HTTP_PROXY" \
+  --build-arg https_proxy="$HTTPS_PROXY" \
+  --build-arg no_proxy="$NO_PROXY" \
   --build-arg UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple \
   --build-arg UV_HTTP_TIMEOUT=300 \
   --tag hongkong-weather:latest .
