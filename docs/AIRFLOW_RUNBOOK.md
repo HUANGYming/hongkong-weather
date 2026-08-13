@@ -26,10 +26,10 @@ Default Docker mode requires every Airflow worker to have:
 ```text
 Docker CLI access
 hongkong-weather:latest image available on the worker host
-project `.env` file or equivalent Airflow environment variables
+database settings in the Airflow worker environment
 ```
 
-Recommended `.env` values:
+Recommended Airflow worker environment values:
 
 ```dotenv
 DB_HOST=codppybkdbd01.melco-resorts.com
@@ -38,15 +38,14 @@ DB_NAME=bigdata_prod
 DB_USER=1018195
 DB_PASS=replace_with_real_password
 HKO_DB_SCHEMA=generic_sma_ai_shared
-HKO_PROJECT_DIR=/opt/llm/chrishuang/hongkong-weather
 HKO_RAW_RETENTION_DAYS=60
-HKO_EXECUTION_MODE=docker
 HKO_DOCKER_IMAGE=hongkong-weather:latest
-HKO_DOCKER_ENV_FILE=/opt/llm/chrishuang/hongkong-weather/.env
 HKO_DOCKER_BIN=docker
+# Optional if the DB is only reachable from the host network:
+# HKO_DOCKER_RUN_ARGS=--network host
 ```
 
-`HKO_PROJECT_DIR` is optional if the `dags/` folder lives inside this repository. Set it explicitly in production if Airflow does not resolve the DAG symlink back to the repository.
+The DAG does not read the project `.env` in Docker mode. `HKO_PROJECT_DIR` is only needed for local-uv mode.
 
 ## Docker Runner
 
@@ -57,12 +56,17 @@ cd /opt/llm/chrishuang/hongkong-weather
 docker image build --tag hongkong-weather:latest .
 ```
 
-Then keep these values in `/opt/llm/chrishuang/hongkong-weather/.env`:
+Then put these values in the Airflow worker environment:
 
 ```dotenv
-HKO_EXECUTION_MODE=docker
+DB_HOST=codppybkdbd01.melco-resorts.com
+DB_PORT=5432
+DB_NAME=bigdata_prod
+DB_USER=1018195
+DB_PASS=replace_with_real_password
+HKO_DB_SCHEMA=generic_sma_ai_shared
+HKO_RAW_RETENTION_DAYS=60
 HKO_DOCKER_IMAGE=hongkong-weather:latest
-HKO_DOCKER_ENV_FILE=/opt/llm/chrishuang/hongkong-weather/.env
 HKO_DOCKER_BIN=docker
 # Optional if the DB is only reachable from the host network:
 # HKO_DOCKER_RUN_ARGS=--network host
@@ -71,7 +75,7 @@ HKO_DOCKER_BIN=docker
 In Docker mode, each task runs like this:
 
 ```bash
-docker run --rm --env-file /opt/llm/chrishuang/hongkong-weather/.env \
+docker run --rm -e DB_HOST -e DB_PORT -e DB_NAME -e DB_USER -e DB_PASS -e HKO_DB_SCHEMA \
   hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 
@@ -84,7 +88,7 @@ Airflow workers must be able to run Docker. If Airflow itself runs in Docker Com
 Test from inside the Airflow worker container:
 
 ```bash
-docker run --rm --env-file /opt/llm/chrishuang/hongkong-weather/.env \
+docker run --rm -e DB_HOST -e DB_PORT -e DB_NAME -e DB_USER -e DB_PASS -e HKO_DB_SCHEMA \
   hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 
@@ -96,9 +100,7 @@ To temporarily switch back to local-uv mode, set `HKO_EXECUTION_MODE=uv`. In uv 
 cd /opt/llm/chrishuang
 git clone https://github.com/HUANGYming/hongkong-weather.git
 cd /opt/llm/chrishuang/hongkong-weather
-uv sync --locked
-cp .env.example .env
-vi .env
+docker image build --tag hongkong-weather:latest .
 
 ln -s /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py
 ```

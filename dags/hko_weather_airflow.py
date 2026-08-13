@@ -1,14 +1,15 @@
 """Airflow DAGs for HKO weather ingestion.
 
 Deployment assumptions:
-- This repository is available on every Airflow worker.
+- The DAG file is available to Airflow.
 - Docker is available on every Airflow worker by default.
-- `DATABASE_URL` is available in the Airflow worker environment.
+- Database settings are available in the Airflow worker environment.
 
 Optional environment variables:
-- HKO_PROJECT_DIR: absolute path to this repository on the Airflow worker.
 - HKO_EXECUTION_MODE: docker or uv, default docker.
 - HKO_DOCKER_IMAGE: Docker image to run, default hongkong-weather:latest.
+- HKO_DOCKER_ENV_FILE: optional env-file path if Airflow can read it.
+- HKO_PROJECT_DIR: absolute path to this repository, only needed for uv mode.
 - HKO_RAW_RETENTION_DAYS: raw realtime observation retention, default 60.
 """
 
@@ -50,23 +51,46 @@ DEFAULT_ARGS = {
 }
 
 
+DOCKER_PASSTHROUGH_ENV = (
+    "DATABASE_URL",
+    "DB_HOST",
+    "DB_PORT",
+    "DB_NAME",
+    "DB_USER",
+    "DB_PASS",
+    "HKO_DB_SCHEMA",
+    "HKO_RAW_RETENTION_DAYS",
+)
+
+
 def task_command(command: str) -> str:
     quoted_project_dir = shlex.quote(PROJECT_DIR)
+    passthrough_names = " ".join(DOCKER_PASSTHROUGH_ENV)
     return (
         "set -euo pipefail; "
         f'PROJECT_DIR={quoted_project_dir}; '
-        'if [ -f "${PROJECT_DIR}/.env" ]; then set -a; . "${PROJECT_DIR}/.env"; set +a; fi; '
-        'if [ -z "${DATABASE_URL:-}" ] && [ -z "${DB_HOST:-}" ]; then '
-        'echo "DATABASE_URL or DB_* settings are required"; exit 1; '
-        "fi; "
         'HKO_EXECUTION_MODE="${HKO_EXECUTION_MODE:-docker}"; '
         'if [ "${HKO_EXECUTION_MODE}" = "docker" ]; then '
         'HKO_DOCKER_BIN="${HKO_DOCKER_BIN:-docker}"; '
         'HKO_DOCKER_IMAGE="${HKO_DOCKER_IMAGE:-hongkong-weather:latest}"; '
-        'HKO_DOCKER_ENV_FILE="${HKO_DOCKER_ENV_FILE:-${PROJECT_DIR}/.env}"; '
-        '"${HKO_DOCKER_BIN}" run --rm --env-file "${HKO_DOCKER_ENV_FILE}" ${HKO_DOCKER_RUN_ARGS:-} '
+        'DOCKER_ENV_ARGS=""; '
+        'if [ -n "${HKO_DOCKER_ENV_FILE:-}" ]; then '
+        'DOCKER_ENV_ARGS="--env-file ${HKO_DOCKER_ENV_FILE}"; '
+        "else "
+        'if [ -z "${DATABASE_URL:-}" ] && [ -z "${DB_HOST:-}" ]; then '
+        'echo "DATABASE_URL or DB_* settings are required in the Airflow worker environment"; exit 1; '
+        "fi; "
+        f"for env_name in {passthrough_names}; do "
+        'if [ -n "${!env_name:-}" ]; then DOCKER_ENV_ARGS="${DOCKER_ENV_ARGS} -e ${env_name}"; fi; '
+        "done; "
+        "fi; "
+        '"${HKO_DOCKER_BIN}" run --rm ${DOCKER_ENV_ARGS} ${HKO_DOCKER_RUN_ARGS:-} '
         f'"${{HKO_DOCKER_IMAGE}}" {command}; '
         'elif [ "${HKO_EXECUTION_MODE}" = "uv" ]; then '
+        'if [ -f "${PROJECT_DIR}/.env" ]; then set -a; . "${PROJECT_DIR}/.env"; set +a; fi; '
+        'if [ -z "${DATABASE_URL:-}" ] && [ -z "${DB_HOST:-}" ]; then '
+        'echo "DATABASE_URL or DB_* settings are required"; exit 1; '
+        "fi; "
         'cd "${PROJECT_DIR}"; '
         f"uv run python {command}; "
         "else "

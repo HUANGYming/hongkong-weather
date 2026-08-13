@@ -33,10 +33,9 @@ DB_PORT=5432
 DB_NAME=bigdata_prod
 DB_USER=1018195
 HKO_DB_SCHEMA=generic_sma_ai_shared
-HKO_PROJECT_DIR=/opt/llm/chrishuang/hongkong-weather
 ```
 
-The Python scripts and Airflow tasks load `.env` automatically from the project root.
+The Python scripts load `.env` automatically for manual/local runs. Airflow Docker mode reads database settings from the Airflow worker environment, not from the project `.env`.
 Yellowbrick does not support PostgreSQL `TEXT` columns, so the project DDL uses bounded `varchar` columns.
 Yellowbrick in DEV ZONE does not support PostgreSQL-style `CREATE INDEX`, so the project DDL does not create secondary indexes.
 Yellowbrick tables can allow duplicate rows, so refresh writes use `DELETE` plus `INSERT` instead of PostgreSQL `ON CONFLICT`.

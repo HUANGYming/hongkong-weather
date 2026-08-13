@@ -46,14 +46,7 @@ DB_USER=1018195
 DB_PASS=replace_with_real_password
 HKO_DB_SCHEMA=generic_sma_ai_shared
 
-HKO_PROJECT_DIR=/opt/llm/chrishuang/hongkong-weather
 HKO_RAW_RETENTION_DAYS=60
-
-HKO_EXECUTION_MODE=docker
-HKO_DOCKER_IMAGE=hongkong-weather:latest
-HKO_DOCKER_ENV_FILE=/opt/llm/chrishuang/hongkong-weather/.env
-HKO_DOCKER_BIN=docker
-# HKO_DOCKER_RUN_ARGS=--network host
 ```
 
 Build the Docker image:
@@ -70,7 +63,23 @@ HKO_DOCKER_RUN_ARGS=--network host
 
 ## Airflow
 
-Airflow uses Docker mode by default.
+Airflow uses Docker mode by default. It does not read the project `.env`.
+
+Put these variables in the Airflow worker environment:
+
+```dotenv
+DB_HOST=codppybkdbd01.melco-resorts.com
+DB_PORT=5432
+DB_NAME=bigdata_prod
+DB_USER=1018195
+DB_PASS=replace_with_real_password
+HKO_DB_SCHEMA=generic_sma_ai_shared
+HKO_RAW_RETENTION_DAYS=60
+
+HKO_DOCKER_IMAGE=hongkong-weather:latest
+HKO_DOCKER_BIN=docker
+# HKO_DOCKER_RUN_ARGS=--network host
+```
 
 Copy the DAG:
 
@@ -79,14 +88,10 @@ cp /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py \
   /opt/llm/airflow/dags/hko_weather_airflow.py
 ```
 
-Set readable permissions. Do not use `777`.
+Set readable permissions for the DAG. Do not use `777`.
 
 ```bash
 chmod 644 /opt/llm/airflow/dags/hko_weather_airflow.py
-chmod 755 /opt/llm/chrishuang/hongkong-weather
-chmod 755 /opt/llm/chrishuang/hongkong-weather/dags
-chmod 644 /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py
-chmod 640 /opt/llm/chrishuang/hongkong-weather/.env
 ```
 
 DAGs:
