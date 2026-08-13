@@ -38,10 +38,9 @@ docker image build \
   --build-arg UV_HTTP_TIMEOUT=300 \
   --tag hongkong-weather:latest .
 
-rm -f /opt/llm/airflow/dags/hko_weather_airflow.py
-ln -s /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py \
+cp /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py \
   /opt/llm/airflow/dags/hko_weather_airflow.py
-chmod 777 /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py
+chmod 777 /opt/llm/airflow/dags/hko_weather_airflow.py
 ```
 
 `.env`:
@@ -63,6 +62,7 @@ NO_PROXY=localhost,127.0.0.1,.melco-resorts.com,10.0.0.0/8
 Docker build copies `.env` into the image as `/app/.env`. Rebuild the image after changing `.env`.
 If DEV ZONE has an internal PyPI mirror, replace `UV_DEFAULT_INDEX` with that mirror URL.
 Airflow DAG runtime also passes these proxy variables into `docker run`.
+If `dags/hko_weather_airflow.py` changes after `git pull`, copy it to `/opt/llm/airflow/dags/` again.
 
 If Docker needs host networking, set this in the Airflow worker environment:
 
