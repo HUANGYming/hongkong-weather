@@ -26,26 +26,17 @@ Default Docker mode requires every Airflow worker to have:
 ```text
 Docker CLI access
 hongkong-weather:latest image available on the worker host
-database settings in the Airflow worker environment
+Airflow Admin Variable hko_weather_db_password
 ```
 
-Recommended Airflow worker environment values:
+Create this Airflow Admin Variable:
 
-```dotenv
-DB_HOST=codppybkdbd01.melco-resorts.com
-DB_PORT=5432
-DB_NAME=bigdata_prod
-DB_USER=1018195
-DB_PASS=replace_with_real_password
-HKO_DB_SCHEMA=generic_sma_ai_shared
-HKO_RAW_RETENTION_DAYS=60
-HKO_DOCKER_IMAGE=hongkong-weather:latest
-HKO_DOCKER_BIN=docker
-# Optional if the DB is only reachable from the host network:
-# HKO_DOCKER_RUN_ARGS=--network host
+```text
+key:   hko_weather_db_password
+value: replace_with_real_password
 ```
 
-The DAG does not read the project `.env` in Docker mode. `HKO_PROJECT_DIR` is only needed for local-uv mode.
+The Docker image contains the DEV ZONE defaults for `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `HKO_DB_SCHEMA`, and `HKO_RAW_RETENTION_DAYS`. The DAG does not read the project `.env` in Docker mode. `HKO_PROJECT_DIR` is only needed for local-uv mode.
 
 ## Docker Runner
 
@@ -56,26 +47,25 @@ cd /opt/llm/chrishuang/hongkong-weather
 docker image build --tag hongkong-weather:latest .
 ```
 
-Then put these values in the Airflow worker environment:
+The only required runtime secret is the Airflow Admin Variable:
+
+```text
+hko_weather_db_password
+```
+
+Optional Airflow worker environment values:
 
 ```dotenv
-DB_HOST=codppybkdbd01.melco-resorts.com
-DB_PORT=5432
-DB_NAME=bigdata_prod
-DB_USER=1018195
-DB_PASS=replace_with_real_password
-HKO_DB_SCHEMA=generic_sma_ai_shared
-HKO_RAW_RETENTION_DAYS=60
 HKO_DOCKER_IMAGE=hongkong-weather:latest
 HKO_DOCKER_BIN=docker
-# Optional if the DB is only reachable from the host network:
+HKO_DB_PASS_VARIABLE=hko_weather_db_password
 # HKO_DOCKER_RUN_ARGS=--network host
 ```
 
 In Docker mode, each task runs like this:
 
 ```bash
-docker run --rm -e DB_HOST -e DB_PORT -e DB_NAME -e DB_USER -e DB_PASS -e HKO_DB_SCHEMA \
+docker run --rm -e DB_PASS \
   hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 
@@ -88,7 +78,7 @@ Airflow workers must be able to run Docker. If Airflow itself runs in Docker Com
 Test from inside the Airflow worker container:
 
 ```bash
-docker run --rm -e DB_HOST -e DB_PORT -e DB_NAME -e DB_USER -e DB_PASS -e HKO_DB_SCHEMA \
+docker run --rm -e DB_PASS \
   hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 

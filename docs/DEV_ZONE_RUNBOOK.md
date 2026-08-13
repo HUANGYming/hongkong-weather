@@ -35,7 +35,7 @@ DB_USER=1018195
 HKO_DB_SCHEMA=generic_sma_ai_shared
 ```
 
-The Python scripts load `.env` automatically for manual/local runs. Airflow Docker mode reads database settings from the Airflow worker environment, not from the project `.env`.
+The Python scripts load `.env` automatically for manual/local runs. Airflow Docker mode does not read the project `.env`; non-secret DEV ZONE defaults are in the image, and `DB_PASS` comes from Airflow Admin Variable `hko_weather_db_password`.
 Yellowbrick does not support PostgreSQL `TEXT` columns, so the project DDL uses bounded `varchar` columns.
 Yellowbrick in DEV ZONE does not support PostgreSQL-style `CREATE INDEX`, so the project DDL does not create secondary indexes.
 Yellowbrick tables can allow duplicate rows, so refresh writes use `DELETE` plus `INSERT` instead of PostgreSQL `ON CONFLICT`.

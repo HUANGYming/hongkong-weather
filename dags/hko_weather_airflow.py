@@ -3,12 +3,14 @@
 Deployment assumptions:
 - The DAG file is available to Airflow.
 - Docker is available on every Airflow worker by default.
-- Database settings are available in the Airflow worker environment.
+- Non-secret DEV ZONE database settings are baked into the Docker image.
+- DB password is stored in Airflow Admin Variables.
 
 Optional environment variables:
 - HKO_EXECUTION_MODE: docker or uv, default docker.
 - HKO_DOCKER_IMAGE: Docker image to run, default hongkong-weather:latest.
 - HKO_DOCKER_ENV_FILE: optional env-file path if Airflow can read it.
+- HKO_DB_PASS_VARIABLE: Airflow Variable name for DB_PASS, default hko_weather_db_password.
 - HKO_PROJECT_DIR: absolute path to this repository, only needed for uv mode.
 - HKO_RAW_RETENTION_DAYS: raw realtime observation retention, default 60.
 """
@@ -63,6 +65,12 @@ DOCKER_PASSTHROUGH_ENV = (
 )
 
 
+def task_environment() -> dict[str, str]:
+    db_pass_variable = os.environ.get("HKO_DB_PASS_VARIABLE", "hko_weather_db_password")
+    escaped_variable = db_pass_variable.replace("\\", "\\\\").replace("'", "\\'")
+    return {"DB_PASS": "{{ var.value.get('" + escaped_variable + "', '') }}"}
+
+
 def task_command(command: str) -> str:
     quoted_project_dir = shlex.quote(PROJECT_DIR)
     passthrough_names = " ".join(DOCKER_PASSTHROUGH_ENV)
@@ -77,8 +85,8 @@ def task_command(command: str) -> str:
         'if [ -n "${HKO_DOCKER_ENV_FILE:-}" ]; then '
         'DOCKER_ENV_ARGS="--env-file ${HKO_DOCKER_ENV_FILE}"; '
         "else "
-        'if [ -z "${DATABASE_URL:-}" ] && [ -z "${DB_HOST:-}" ]; then '
-        'echo "DATABASE_URL or DB_* settings are required in the Airflow worker environment"; exit 1; '
+        'if [ -z "${DATABASE_URL:-}" ] && [ -z "${DB_PASS:-}" ]; then '
+        'echo "DB_PASS is required; set Airflow Variable hko_weather_db_password"; exit 1; '
         "fi; "
         f"for env_name in {passthrough_names}; do "
         'if [ -n "${!env_name:-}" ]; then DOCKER_ENV_ARGS="${DOCKER_ENV_ARGS} -e ${env_name}"; fi; '
@@ -112,6 +120,8 @@ with DAG(
     BashOperator(
         task_id="ingest_current_observations",
         bash_command=task_command("update_hko_realtime_postgres.py --mode current --include-rainfall"),
+        env=task_environment(),
+        append_env=True,
         execution_timeout=timedelta(minutes=8),
     )
 
@@ -129,6 +139,8 @@ with DAG(
     BashOperator(
         task_id="cleanup_realtime_observations",
         bash_command=task_command("cleanup_hko_realtime_raw.py"),
+        env=task_environment(),
+        append_env=True,
         execution_timeout=timedelta(minutes=10),
     )
 
@@ -146,6 +158,8 @@ with DAG(
     BashOperator(
         task_id="ingest_official_daily",
         bash_command=task_command("update_hko_postgres.py"),
+        env=task_environment(),
+        append_env=True,
         execution_timeout=timedelta(minutes=30),
     )
 
@@ -163,12 +177,16 @@ with DAG(
     full_refresh_official_daily = BashOperator(
         task_id="full_refresh_official_daily",
         bash_command=task_command("update_hko_postgres.py --full-refresh"),
+        env=task_environment(),
+        append_env=True,
         execution_timeout=timedelta(hours=1),
     )
 
     ingest_current_observations = BashOperator(
         task_id="ingest_current_observations",
         bash_command=task_command("update_hko_realtime_postgres.py --mode current --include-rainfall"),
+        env=task_environment(),
+        append_env=True,
         execution_timeout=timedelta(minutes=8),
     )
 

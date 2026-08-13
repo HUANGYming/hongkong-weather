@@ -5,7 +5,13 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    UV_NO_SYNC=1
+    UV_NO_SYNC=1 \
+    DB_HOST=codppybkdbd01.melco-resorts.com \
+    DB_PORT=5432 \
+    DB_NAME=bigdata_prod \
+    DB_USER=1018195 \
+    HKO_DB_SCHEMA=generic_sma_ai_shared \
+    HKO_RAW_RETENTION_DAYS=60
 
 COPY pyproject.toml uv.lock ./
 RUN UV_NO_SYNC=0 uv sync --locked --no-dev

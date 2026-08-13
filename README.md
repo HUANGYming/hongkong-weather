@@ -49,6 +49,8 @@ HKO_DB_SCHEMA=generic_sma_ai_shared
 HKO_RAW_RETENTION_DAYS=60
 ```
 
+The local `.env` is only for manual runs. Airflow does not read it.
+
 Build the Docker image:
 
 ```bash
@@ -65,20 +67,19 @@ HKO_DOCKER_RUN_ARGS=--network host
 
 Airflow uses Docker mode by default. It does not read the project `.env`.
 
-Put these variables in the Airflow worker environment:
+Create one Airflow Admin Variable:
+
+```text
+key:   hko_weather_db_password
+value: replace_with_real_password
+```
+
+The Docker image already contains the DEV ZONE defaults for `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `HKO_DB_SCHEMA`, and `HKO_RAW_RETENTION_DAYS`.
+
+If Airflow also needs host networking for Docker, set this in the Airflow worker environment:
 
 ```dotenv
-DB_HOST=codppybkdbd01.melco-resorts.com
-DB_PORT=5432
-DB_NAME=bigdata_prod
-DB_USER=1018195
-DB_PASS=replace_with_real_password
-HKO_DB_SCHEMA=generic_sma_ai_shared
-HKO_RAW_RETENTION_DAYS=60
-
-HKO_DOCKER_IMAGE=hongkong-weather:latest
-HKO_DOCKER_BIN=docker
-# HKO_DOCKER_RUN_ARGS=--network host
+HKO_DOCKER_RUN_ARGS=--network host
 ```
 
 Copy the DAG:
