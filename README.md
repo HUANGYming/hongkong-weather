@@ -5,9 +5,9 @@ HKO center station weather ingestion for DEV ZONE Yellowbrick.
 ## Tables
 
 ```text
-generic_sma_ai_shared.fact_feature_date_hkweather_1day_daily_v1
-generic_sma_ai_shared.fact_feature_observation_hkweather_10min_realtime_v1
-generic_sma_ai_shared.meta_feature_run_hkweather_ingest_1run_event_v1
+generic_sna_ai_shared.fact_feature_date_hkweather_1day_daily_v1
+generic_sna_ai_shared.fact_feature_observation_hkweather_10min_realtime_v1
+generic_sna_ai_shared.meta_feature_run_hkweather_ingest_1run_event_v1
 ```
 
 ## Deploy
@@ -52,7 +52,7 @@ DB_PORT=5432
 DB_NAME=bigdata_prod
 DB_USER=1018195
 DB_PASS=replace_with_real_password
-HKO_DB_SCHEMA=generic_sma_ai_shared
+HKO_DB_SCHEMA=generic_sna_ai_shared
 HKO_RAW_RETENTION_DAYS=60
 ```
 
@@ -90,14 +90,14 @@ export DATABASE_URL="postgresql://${DB_USER}:${DB_PASS}@${DB_HOST}:${DB_PORT}/${
 psql "$DATABASE_URL" -c "
 SELECT date, source, mean_temp_c, max_temp_c, min_temp_c,
        mslp_hpa, mean_relative_humidity_pct, total_rainfall_mm
-FROM generic_sma_ai_shared.fact_feature_date_hkweather_1day_daily_v1
+FROM generic_sna_ai_shared.fact_feature_date_hkweather_1day_daily_v1
 ORDER BY date DESC
 LIMIT 20;
 "
 
 psql "$DATABASE_URL" -c "
 SELECT obs_time, fetched_at, source, metric, value, unit
-FROM generic_sma_ai_shared.fact_feature_observation_hkweather_10min_realtime_v1
+FROM generic_sna_ai_shared.fact_feature_observation_hkweather_10min_realtime_v1
 ORDER BY obs_time DESC, source, metric
 LIMIT 20;
 "
