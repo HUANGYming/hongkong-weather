@@ -22,7 +22,11 @@ git pull origin codex/local-airflow-demo
 cp .env.example .env
 vi .env
 
-docker image build --tag hongkong-weather:latest .
+docker image build \
+  --network host \
+  --build-arg UV_DEFAULT_INDEX=https://pypi.tuna.tsinghua.edu.cn/simple \
+  --build-arg UV_HTTP_TIMEOUT=300 \
+  --tag hongkong-weather:latest .
 
 rm -f /opt/llm/airflow/dags/hko_weather_airflow.py
 ln -s /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py \
@@ -43,6 +47,7 @@ HKO_RAW_RETENTION_DAYS=60
 ```
 
 Docker build copies `.env` into the image as `/app/.env`. Rebuild the image after changing `.env`.
+If DEV ZONE has an internal PyPI mirror, replace `UV_DEFAULT_INDEX` with that mirror URL.
 
 If Docker needs host networking, set this in the Airflow worker environment:
 
