@@ -39,10 +39,17 @@ vi .env
 Required `.env` values:
 
 ```dotenv
+DB_HOST=codppybkdbd01.melco-resorts.com
+DB_PORT=5432
+DB_NAME=bigdata_prod
+DB_USER=1018195
 DB_PASS=replace_with_real_password
+HKO_DB_SCHEMA=generic_sma_ai_shared
+
+HKO_RAW_RETENTION_DAYS=60
 ```
 
-The code has DEV ZONE defaults for `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `HKO_DB_SCHEMA`, and `HKO_RAW_RETENTION_DAYS`. The local `.env` is only for manual overrides. Airflow does not read it.
+Docker build copies `.env` into the image as `/app/.env`. Rebuild the image after changing `.env`.
 
 Build the Docker image:
 
@@ -50,24 +57,13 @@ Build the Docker image:
 docker image build --tag hongkong-weather:latest .
 ```
 
-If the container cannot reach Yellowbrick, uncomment this in `.env`:
+If the container cannot reach Yellowbrick during manual Docker tests, add `--network host` to `docker run`.
 
-```dotenv
-HKO_DOCKER_RUN_ARGS=--network host
-```
+For Airflow, use `HKO_DOCKER_RUN_ARGS=--network host` in the Airflow worker environment.
 
 ## Airflow
 
-Airflow uses Docker mode by default. It does not read the project `.env`.
-
-Create one Airflow Admin Variable:
-
-```text
-key:   hko_weather_db_password
-value: replace_with_real_password
-```
-
-The code already contains the DEV ZONE defaults for `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `HKO_DB_SCHEMA`, and `HKO_RAW_RETENTION_DAYS`.
+Airflow uses Docker mode by default. It does not read the project `.env`; the config is already inside the image.
 
 If Airflow also needs host networking for Docker, set this in the Airflow worker environment:
 
@@ -109,22 +105,19 @@ airflow dags list | grep hko_weather
 Test Docker:
 
 ```bash
-docker run --rm --env-file /opt/llm/chrishuang/hongkong-weather/.env \
-  hongkong-weather:latest update_hko_realtime_postgres.py --help
+docker run --rm hongkong-weather:latest update_hko_realtime_postgres.py --help
 ```
 
 Realtime current ingestion:
 
 ```bash
-docker run --rm --env-file /opt/llm/chrishuang/hongkong-weather/.env \
-  hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
+docker run --rm hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 
 Official daily full refresh:
 
 ```bash
-docker run --rm --env-file /opt/llm/chrishuang/hongkong-weather/.env \
-  hongkong-weather:latest update_hko_postgres.py --full-refresh
+docker run --rm hongkong-weather:latest update_hko_postgres.py --full-refresh
 ```
 
 Local tests:

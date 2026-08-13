@@ -34,32 +34,18 @@ def load_dotenv(path: str | os.PathLike[str] = ".env") -> None:
 load_dotenv()
 
 
-DEFAULT_DB_ENV = {
-    "DB_HOST": "codppybkdbd01.melco-resorts.com",
-    "DB_PORT": "5432",
-    "DB_NAME": "bigdata_prod",
-    "DB_USER": "1018195",
-    "HKO_DB_SCHEMA": "generic_sma_ai_shared",
-    "HKO_RAW_RETENTION_DAYS": "60",
-}
-
-
-def env_value(name: str) -> str | None:
-    return os.environ.get(name) or DEFAULT_DB_ENV.get(name)
-
-
 def database_url_from_env() -> str | None:
     if os.environ.get("DATABASE_URL"):
         return os.environ["DATABASE_URL"]
 
     required_keys = ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASS")
-    if not all(env_value(key) for key in required_keys):
+    if not all(os.environ.get(key) for key in required_keys):
         return None
 
-    host = env_value("DB_HOST")
-    port = env_value("DB_PORT") or "5432"
-    name = quote(env_value("DB_NAME") or "", safe="")
-    user = quote(env_value("DB_USER") or "", safe="")
+    host = os.environ["DB_HOST"]
+    port = os.environ.get("DB_PORT", "5432")
+    name = quote(os.environ["DB_NAME"], safe="")
+    user = quote(os.environ["DB_USER"], safe="")
     password = quote(os.environ["DB_PASS"], safe="")
     return f"postgresql://{user}:{password}@{host}:{port}/{name}"
 
@@ -88,7 +74,7 @@ SHORT_VARCHAR = "varchar(128)"
 MEDIUM_VARCHAR = "varchar(512)"
 LONG_VARCHAR = "varchar(64000)"
 
-DB_SCHEMA = os.environ.get("HKO_DB_SCHEMA") or os.environ.get("DB_SCHEMA") or os.environ.get("SCHEMA") or DEFAULT_DB_ENV["HKO_DB_SCHEMA"]
+DB_SCHEMA = os.environ.get("HKO_DB_SCHEMA") or os.environ.get("DB_SCHEMA") or os.environ.get("SCHEMA")
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 

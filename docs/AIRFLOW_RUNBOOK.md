@@ -26,17 +26,10 @@ Default Docker mode requires every Airflow worker to have:
 ```text
 Docker CLI access
 hongkong-weather:latest image available on the worker host
-Airflow Admin Variable hko_weather_db_password
+image built with `/app/.env`
 ```
 
-Create this Airflow Admin Variable:
-
-```text
-key:   hko_weather_db_password
-value: replace_with_real_password
-```
-
-The code contains the DEV ZONE defaults for `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `HKO_DB_SCHEMA`, and `HKO_RAW_RETENTION_DAYS`. The DAG does not read the project `.env` in Docker mode. `HKO_PROJECT_DIR` is only needed for local-uv mode.
+The DAG does not read the project `.env` in Docker mode. Docker build copies the project `.env` into the image as `/app/.env`. `HKO_PROJECT_DIR` is only needed for local-uv mode.
 
 ## Docker Runner
 
@@ -44,13 +37,9 @@ Docker mode avoids most project-directory and Python-environment permission issu
 
 ```bash
 cd /opt/llm/chrishuang/hongkong-weather
+cp .env.example .env
+vi .env
 docker image build --tag hongkong-weather:latest .
-```
-
-The only required runtime secret is the Airflow Admin Variable:
-
-```text
-hko_weather_db_password
 ```
 
 Optional Airflow worker environment values:
@@ -58,15 +47,13 @@ Optional Airflow worker environment values:
 ```dotenv
 HKO_DOCKER_IMAGE=hongkong-weather:latest
 HKO_DOCKER_BIN=docker
-HKO_DB_PASS_VARIABLE=hko_weather_db_password
 # HKO_DOCKER_RUN_ARGS=--network host
 ```
 
 In Docker mode, each task runs like this:
 
 ```bash
-docker run --rm -e DB_PASS \
-  hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
+docker run --rm hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 
 Airflow workers must be able to run Docker. If Airflow itself runs in Docker Compose, mount the Docker socket and make sure the worker image has a Docker CLI:
@@ -78,8 +65,7 @@ Airflow workers must be able to run Docker. If Airflow itself runs in Docker Com
 Test from inside the Airflow worker container:
 
 ```bash
-docker run --rm -e DB_PASS \
-  hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
+docker run --rm hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 
 To temporarily switch back to local-uv mode, set `HKO_EXECUTION_MODE=uv`. In uv mode every Airflow worker also needs `uv` and a working checkout of this repo.
@@ -90,6 +76,8 @@ To temporarily switch back to local-uv mode, set `HKO_EXECUTION_MODE=uv`. In uv 
 cd /opt/llm/chrishuang
 git clone https://github.com/HUANGYming/hongkong-weather.git
 cd /opt/llm/chrishuang/hongkong-weather
+cp .env.example .env
+vi .env
 docker image build --tag hongkong-weather:latest .
 
 ln -s /opt/llm/chrishuang/hongkong-weather/dags/hko_weather_airflow.py /opt/llm/airflow/dags/hko_weather_airflow.py

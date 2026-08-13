@@ -14,5 +14,6 @@ COPY hko_common.py ./
 COPY update_hko_postgres.py ./
 COPY update_hko_realtime_postgres.py ./
 COPY cleanup_hko_realtime_raw.py ./
+COPY .env ./
 
 ENTRYPOINT ["uv", "run", "python"]

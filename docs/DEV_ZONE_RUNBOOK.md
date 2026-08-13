@@ -25,13 +25,19 @@ mkdir -p logs
 
 Set the real `DB_PASS` in `.env`. Do not commit `.env`.
 
-For DEV ZONE manual runs, `DB_PASS` is usually enough because the code has defaults for the other database settings:
+For DEV ZONE:
 
 ```text
+DB_HOST=codppybkdbd01.melco-resorts.com
+DB_PORT=5432
+DB_NAME=bigdata_prod
+DB_USER=1018195
 DB_PASS=replace_with_real_password
+HKO_DB_SCHEMA=generic_sma_ai_shared
+HKO_RAW_RETENTION_DAYS=60
 ```
 
-The Python scripts load `.env` automatically for manual/local runs. Airflow Docker mode does not read the project `.env`; non-secret DEV ZONE defaults are in the code, and `DB_PASS` comes from Airflow Admin Variable `hko_weather_db_password`.
+The Python scripts load `.env` automatically for manual/local runs. Airflow Docker mode does not read the project `.env`; Docker build copies `.env` into the image as `/app/.env`.
 Yellowbrick does not support PostgreSQL `TEXT` columns, so the project DDL uses bounded `varchar` columns.
 Yellowbrick in DEV ZONE does not support PostgreSQL-style `CREATE INDEX`, so the project DDL does not create secondary indexes.
 Yellowbrick tables can allow duplicate rows, so refresh writes use `DELETE` plus `INSERT` instead of PostgreSQL `ON CONFLICT`.
