@@ -21,7 +21,7 @@ hko_weather_bootstrap                Manual bootstrap DAG
 
 ## Worker Requirements
 
-Every Airflow worker must have:
+Default local-uv mode requires every Airflow worker to have:
 
 ```text
 uv
@@ -43,6 +43,47 @@ HKO_RAW_RETENTION_DAYS=60
 ```
 
 `HKO_PROJECT_DIR` is optional if the `dags/` folder lives inside this repository. Set it explicitly in production if Airflow does not resolve the DAG symlink back to the repository.
+
+## Docker Runner Option
+
+Docker mode avoids most project-directory and Python-environment permission issues. Build the image on the Airflow worker host:
+
+```bash
+cd /opt/llm/chrishuang/hongkong-weather
+docker build -t hongkong-weather:latest .
+```
+
+Then add these values to the same environment that Airflow uses for DAG parsing and task execution:
+
+```dotenv
+HKO_DOCKER_IMAGE=hongkong-weather:latest
+HKO_DOCKER_ENV_FILE=/opt/llm/chrishuang/hongkong-weather/.env
+HKO_DOCKER_BIN=docker
+# Optional if the DB is only reachable from the host network:
+# HKO_DOCKER_RUN_ARGS=--network host
+```
+
+In Docker mode, each task runs like this:
+
+```bash
+docker run --rm --env-file /opt/llm/chrishuang/hongkong-weather/.env \
+  hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
+```
+
+Airflow workers must be able to run Docker. If Airflow itself runs in Docker Compose, mount the Docker socket and make sure the worker image has a Docker CLI:
+
+```text
+/var/run/docker.sock:/var/run/docker.sock
+```
+
+Test from inside the Airflow worker container:
+
+```bash
+docker run --rm --env-file /opt/llm/chrishuang/hongkong-weather/.env \
+  hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
+```
+
+To switch back to local-uv mode, unset `HKO_DOCKER_IMAGE`.
 
 ## Quick Deploy For `/opt/llm/airflow/dags`
 

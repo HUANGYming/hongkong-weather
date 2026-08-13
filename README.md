@@ -117,6 +117,29 @@ Run current realtime again:
 uv run python update_hko_realtime_postgres.py --mode current --include-rainfall
 ```
 
+## Docker
+
+Build the project image:
+
+```bash
+docker build -t hongkong-weather:latest .
+```
+
+Run one job with the project `.env`:
+
+```bash
+docker run --rm --env-file .env \
+  hongkong-weather:latest update_hko_realtime_postgres.py --mode current --include-rainfall
+```
+
+Airflow can use Docker mode by setting:
+
+```dotenv
+HKO_DOCKER_IMAGE=hongkong-weather:latest
+HKO_DOCKER_ENV_FILE=/opt/llm/chrishuang/hongkong-weather/.env
+# HKO_DOCKER_RUN_ARGS=--network host
+```
+
 ## Verify
 
 Build `DATABASE_URL` for `psql` if you only configured `DB_*` in `.env`:

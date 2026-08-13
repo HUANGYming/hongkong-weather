@@ -13,6 +13,7 @@ Optional environment variables:
 from __future__ import annotations
 
 import os
+import shlex
 from datetime import timedelta
 from pathlib import Path
 
@@ -32,6 +33,10 @@ except ImportError:  # Airflow 2.x compatibility.
 DAG_DIR = Path(__file__).resolve().parent
 DEFAULT_PROJECT_DIR = DAG_DIR.parent
 PROJECT_DIR = os.environ.get("HKO_PROJECT_DIR", str(DEFAULT_PROJECT_DIR))
+DOCKER_IMAGE = os.environ.get("HKO_DOCKER_IMAGE")
+DOCKER_BIN = os.environ.get("HKO_DOCKER_BIN", "docker")
+DOCKER_ENV_FILE = os.environ.get("HKO_DOCKER_ENV_FILE", str(Path(PROJECT_DIR) / ".env"))
+DOCKER_RUN_ARGS = os.environ.get("HKO_DOCKER_RUN_ARGS", "")
 HK_TZ = pendulum.timezone("Asia/Hong_Kong")
 
 
@@ -43,7 +48,16 @@ DEFAULT_ARGS = {
 }
 
 
-def uv_command(command: str) -> str:
+def task_command(command: str) -> str:
+    if DOCKER_IMAGE:
+        return (
+            "set -euo pipefail; "
+            f"{shlex.quote(DOCKER_BIN)} run --rm "
+            f"--env-file {shlex.quote(DOCKER_ENV_FILE)} "
+            f"{DOCKER_RUN_ARGS} "
+            f"{shlex.quote(DOCKER_IMAGE)} {command}"
+        )
+
     return (
         "set -euo pipefail; "
         f"cd {PROJECT_DIR!r}; "
@@ -67,7 +81,7 @@ with DAG(
 ) as realtime_ingest_dag:
     BashOperator(
         task_id="ingest_current_observations",
-        bash_command=uv_command("update_hko_realtime_postgres.py --mode current --include-rainfall"),
+        bash_command=task_command("update_hko_realtime_postgres.py --mode current --include-rainfall"),
         execution_timeout=timedelta(minutes=8),
     )
 
@@ -84,9 +98,7 @@ with DAG(
 ) as realtime_cleanup_dag:
     BashOperator(
         task_id="cleanup_realtime_observations",
-        bash_command=uv_command(
-            'cleanup_hko_realtime_raw.py --retention-days "${HKO_RAW_RETENTION_DAYS:-60}"'
-        ),
+        bash_command=task_command("cleanup_hko_realtime_raw.py"),
         execution_timeout=timedelta(minutes=10),
     )
 
@@ -103,7 +115,7 @@ with DAG(
 ) as official_daily_ingest_dag:
     BashOperator(
         task_id="ingest_official_daily",
-        bash_command=uv_command("update_hko_postgres.py"),
+        bash_command=task_command("update_hko_postgres.py"),
         execution_timeout=timedelta(minutes=30),
     )
 
@@ -120,13 +132,13 @@ with DAG(
 ) as bootstrap_dag:
     full_refresh_official_daily = BashOperator(
         task_id="full_refresh_official_daily",
-        bash_command=uv_command("update_hko_postgres.py --full-refresh"),
+        bash_command=task_command("update_hko_postgres.py --full-refresh"),
         execution_timeout=timedelta(hours=1),
     )
 
     ingest_current_observations = BashOperator(
         task_id="ingest_current_observations",
-        bash_command=uv_command("update_hko_realtime_postgres.py --mode current --include-rainfall"),
+        bash_command=task_command("update_hko_realtime_postgres.py --mode current --include-rainfall"),
         execution_timeout=timedelta(minutes=8),
     )
 

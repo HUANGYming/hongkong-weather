@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 
 from hko_common import (
     REALTIME_RAW_TABLE,
@@ -33,7 +34,7 @@ def cleanup(conn, retention_days: int) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Delete old HKO realtime raw observations.")
     parser.add_argument("--database-url", default=database_url_from_env())
-    parser.add_argument("--retention-days", type=int, default=60)
+    parser.add_argument("--retention-days", type=int, default=int(os.environ.get("HKO_RAW_RETENTION_DAYS", "60")))
     return parser
 
 
