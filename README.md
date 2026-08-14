@@ -75,7 +75,7 @@ HKO_DOCKER_RUN_ARGS=--network host
 ```text
 hko_weather_realtime_ingest          every 10 minutes
 hko_weather_realtime_cleanup         daily 01:25 HK time
-hko_weather_official_daily_ingest    daily 08:15 HK time
+hko_weather_official_daily_ingest    daily 08:15, 12:15, 16:15 HK time
 hko_weather_bootstrap                manual bootstrap
 ```
 

@@ -123,7 +123,7 @@ with DAG(
     description="Fetch official HKO daily data and update the business daily table.",
     default_args=DEFAULT_ARGS,
     start_date=pendulum.datetime(2026, 8, 10, tz=HK_TZ),
-    schedule="15 8 * * *",
+    schedule="15 8,12,16 * * *",
     catchup=False,
     max_active_runs=1,
     tags=["hko", "weather", "official"],
